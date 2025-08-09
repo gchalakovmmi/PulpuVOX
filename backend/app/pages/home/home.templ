@@ -1,0 +1,25 @@
+package home
+
+import (
+				"PulpuVOX/pages/base"
+				"PulpuVOX/pages/home/components/mock"
+)
+
+templ HomeStyles() {
+				@Styles()
+				@mock.Styles()
+}
+
+templ HomeScripts() {
+				@Scripts()
+				@mock.Scripts()
+}
+
+templ HomeComponents() {
+				@Scripts()
+				@mock.Mock()
+}
+
+templ Home() {
+				@base.Base("PulpuVOX", HomeComponents(), HomeStyles(), HomeScripts())
+}

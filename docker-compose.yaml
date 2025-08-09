@@ -1,0 +1,44 @@
+services:
+  backend:
+    image: pulpuvox-backend
+    restart: unless-stopped
+    env_file:
+      - ./vars.env
+    networks:
+      - pulpuvox_net
+      - net
+    ports:
+      - "8080:8080" 
+
+  database:
+    image: pulpuvox-postgres
+    restart: unless-stopped
+    env_file:
+      - ./vars.env
+    networks:
+      - pulpuvox_net
+    ports:
+      - "5432:5432"
+    volumes:
+      - ~/.local/docker-volumes/pulpuvox-postgres:/var/lib/postgresql/data
+  #
+  #
+  # objectstorage:
+  #   image: ntg-objectstorage
+  #   restart: unless-stopped
+  #   env_file:
+  #     - ./vars.env
+  #   networks:
+  #     - ntg_net
+  #   ports:
+  #     - "9000:9000"
+  #     - "9001:9001"
+  #   volumes:
+  #     - ./minio_data:/data
+
+
+networks:
+  pulpuvox_net:
+    external: false
+  net:
+    external: true
