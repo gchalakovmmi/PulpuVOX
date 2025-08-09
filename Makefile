@@ -1,5 +1,8 @@
 NAME := pulpuvox
-.PHONY: clear backend backend-logs database database-logs database-connect objectstorage objectstorage-logs all up down restart
+DB_USR := changeme
+DB_SCH := app
+
+.PHONY: clear backend backend-logs database database-clean database-logs database-connect objectstorage objectstorage-logs all up down restart
 
 clear:
 	@clear
@@ -17,6 +20,11 @@ backend:
 backend-logs:
 	@docker logs --follow $(NAME)-backend-1
 
+database-clean:
+	@docker stop $(NAME)-database-1
+	@docker rm $(NAME)-database-1
+	@docker volume rm $(NAME)_database_data
+
 database:
 	@echo "=== DataBase ==="
 	@echo "Building image..."
@@ -29,7 +37,10 @@ database-logs:
 	@docker logs --follow $(NAME)-database-1
 
 database-connect:
-	@docker exec -it $(NAME)-database-1 psql -h localhost -U changeme -d app
+	@echo "Waiting for PostgreSQL to be ready..."
+	@timeout 30 bash -c 'until docker exec $(NAME)-database-1 pg_isready -U $(DB_USR) -d $(DB_SCH); do sleep 0.5; done'
+	@sleep 0.5
+	@docker exec -it $(NAME)-database-1 psql -h localhost -U $(DB_USR) -d $(DB_SCH)
 
 objectstorage:
 	@echo "=== ObjectStorage ==="
