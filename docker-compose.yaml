@@ -20,7 +20,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ~/.local/docker-volumes/pulpuvox-postgres:/var/lib/postgresql/data
+      - database_data:/var/lib/postgresql/data
   #
   #
   # objectstorage:
@@ -34,8 +34,11 @@ services:
   #     - "9000:9000"
   #     - "9001:9001"
   #   volumes:
-  #     - ./minio_data:/data
+  #     - objectstorage_data:/data
 
+volumes:
+  database_data:
+  # objectstorage_data:
 
 networks:
   pulpuvox_net:
