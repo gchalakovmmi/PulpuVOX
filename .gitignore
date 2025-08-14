@@ -1,2 +1,3 @@
 backend/app/app
 *_templ.go
+cache.mem
