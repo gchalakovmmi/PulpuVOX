@@ -14,4 +14,5 @@ compile:
 
 run:
 	@echo "Runing $(BINARY)"
-	BACKEND_PORT=8080 ./app
+	# env $$(cat vars.env | xargs) go run main.go
+	env $$(cat vars.env | xargs) ./app
