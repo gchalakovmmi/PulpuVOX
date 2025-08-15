@@ -15,4 +15,5 @@ compile:
 run:
 	@echo "Runing $(BINARY)"
 	# env $$(cat vars.env | xargs) go run main.go
-	env $$(cat vars.env | xargs) ./app
+	# env $$(cat vars.env | xargs) ./app
+	env $$(grep -v '^#' vars.env | xargs) ./app
