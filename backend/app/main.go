@@ -3,21 +3,23 @@ package main
 import (
 	"os"
 	"fmt"
+	"log"
 	"strconv"
 	"net/http"
 	"PulpuVOX/pages/home"
 	"github.com/a-h/templ"
-	// "github.com/jackc/pgx/v5"
-	"github.com/gchalakovmmi/handlers"
+	"github.com/jackc/pgx/v5"
+	"github.com/gchalakovmmi/PulpuWEB/db"
 
 	"time"
 	"io"
-	"PulpuVOX/authentication"
+	"github.com/gchalakovmmi/PulpuWEB/auth"
 	"context"
 )
 
 func main() {
-	dbConnectionDetails := handlers.ConnectionDetails{
+	/////////////// DB Example ////////////////////
+	dbConnectionDetails := db.ConnectionDetails{
 		User: 		os.Getenv("POSTGRES_USER"),
 		Password:	os.Getenv("POSTGRES_PASSWORD"),
 		ServerIP:	os.Getenv("POSTGRES_CONTAINER_NAME"),
@@ -29,6 +31,20 @@ func main() {
 		panic(fmt.Sprintf("Invalid POSTGRES_PORT: %v", err))
 	}
 
+	http.HandleFunc("/test", db.WithDB(dbConnectionDetails, func(w http.ResponseWriter, r *http.Request, conn *pgx.Conn){
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	   defer cancel()
+		var fld string
+		err := conn.QueryRow(ctx, "select 'Hello World!' as fld").Scan(&fld)
+		if err != nil {
+				log.Println("Example query failed. Error:\n%v")
+				http.Error(w, "Database error", http.StatusInternalServerError)
+		}
+		fmt.Println(fld)
+		templ.Handler(home.Home()).ServeHTTP(w, r)
+	}))
+	/////////////// DB Example ////////////////////
+
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "favicon.ico")
 	})
@@ -36,16 +52,6 @@ func main() {
 	http.HandleFunc("/home", func(w http.ResponseWriter, r *http.Request) {
 		templ.Handler(home.Home()).ServeHTTP(w, r)
 	})
-	// http.HandleFunc("/test", handlers.WithDB(dbConnectionDetails, func(w http.ResponseWriter, r *http.Request, conn *pgx.Conn){
-	// 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	//    defer cancel()
-	// 	var fld string
-	// 	err := conn.QueryRow(ctx, "select fld from tbl").Scan(&fld)
-	// 	if err != nil {
-	// 	}
-	// 	fmt.Println(fld)
-	// 	templ.Handler(home.Home()).ServeHTTP(w, r)
-	// }))
 
 	/////////////// Authentication ////////////////////
 	// Initialize authentication
@@ -54,16 +60,15 @@ func main() {
 		sessionDuration = 24 * time.Hour
 	}
 
-	authConfig := &authentication.Config{
+	authConfig := &auth.Config{
 		GoogleKey:       os.Getenv("GOOGLE_KEY"),
 		GoogleSecret:    os.Getenv("GOOGLE_SECRET"),
-		// Use the actual domain and port your app is running on
 		CallbackURL:     "http://" + os.Getenv("DOMAIN") + "/auth/google/callback",
 		SecretKey:       []byte(os.Getenv("SESSION_SECRET")),
 		SessionDuration: sessionDuration,
 	}
 
-	googleAuth := authentication.NewGoogleAuth(authConfig)
+	googleAuth := auth.NewGoogleAuth(authConfig)
 
 	// Authentication routes
 	http.HandleFunc("/auth/google", func(w http.ResponseWriter, r *http.Request) {
