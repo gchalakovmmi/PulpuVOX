@@ -14,6 +14,8 @@ import (
 	"time"
 	"github.com/gchalakovmmi/PulpuWEB/auth"
 	"context"
+
+	"github.com/markbates/goth"
 )
 
 func main() {
@@ -33,23 +35,11 @@ func main() {
 
 	// Handle routes
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "favicon.ico")
+		http.ServeFile(w, r, "static/logo/favicon.ico")
 	})
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		templ.Handler(landing.Landing()).ServeHTTP(w, r)
 	})
-	http.HandleFunc("/db-example", db.WithDB(dbConnectionDetails, func(w http.ResponseWriter, r *http.Request, conn *pgx.Conn){
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		var fld string
-		err := conn.QueryRow(ctx, "select 'Hello World!' as fld").Scan(&fld)
-		if err != nil {
-				log.Println("Example query failed. Error:\n%v")
-				http.Error(w, "Database error", http.StatusInternalServerError)
-		}
-		fmt.Println(fld)
-		templ.Handler(landing.Landing()).ServeHTTP(w, r)
-	}))
 	// Authentication routes
 	http.HandleFunc("/auth/google", func(w http.ResponseWriter, r *http.Request) {
 		if _, err := googleAuth.GetSession(r); err == nil {
@@ -80,20 +70,141 @@ func main() {
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 	})
 
-	// Protected route
-	http.HandleFunc("/home", func(w http.ResponseWriter, r *http.Request) {
-		session, err := googleAuth.GetSession(r)
-		if err != nil {
-			http.Redirect(w, r, "/auth/google", http.StatusTemporaryRedirect)
-			return
-		}
-		user := session.User
-
-		// Render protected content using templ
-		templ.Handler(home.Home(user)).ServeHTTP(w, r)
-	})
+	http.HandleFunc("/home", 
+		googleAuth.WithGoogleAuth(
+			db.WithDB(dbConnectionDetails, func(w http.ResponseWriter, r *http.Request, conn *pgx.Conn) {
+				HomeHandler(w, r, conn, googleAuth)
+			}),
+		),
+	)
 
 	port := os.Getenv("BACKEND_PORT")
 	fmt.Printf("Serving on port %s ...\n", port)
 	http.ListenAndServe(fmt.Sprintf(":%s", port), nil)
+}
+
+func HomeHandler(w http.ResponseWriter, r *http.Request, conn *pgx.Conn, googleAuth *auth.GoogleAuth) {
+    session, err := googleAuth.GetSession(r)
+    if err != nil {
+        http.Redirect(w, r, "/auth/google", http.StatusTemporaryRedirect)
+        return
+    }
+    user := session.User
+    
+    // Check and create user if needed
+    dbUser, err := GetOrCreateUser(conn, user)
+    if err != nil {
+        log.Printf("User management error: %v", err)
+        http.Error(w, "Failed to process user data", http.StatusInternalServerError)
+        return
+    }
+    
+    log.Printf("User processed: %s (DB ID: %d)", dbUser.Name, dbUser.ID)
+    
+    // Render protected content using templ
+    templ.Handler(home.Home(user)).ServeHTTP(w, r)
+}
+
+// User struct matching your database schema
+type DBUser struct {
+    ID           int
+    Provider     string
+    UserID       string
+    Name         string
+    Nickname     string
+    Email        string
+    Location     string
+    Description  string
+    AccessToken  string
+    RefreshToken string
+    ExpiresAt    time.Time
+    PictureLink  string
+    CreatedAt    time.Time
+    UpdatedAt    time.Time
+}
+
+func GetOrCreateUser(conn *pgx.Conn, authUser goth.User) (*DBUser, error) {
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+    
+    // Try to get existing user
+    dbUser, err := GetUserByProviderID(ctx, conn, authUser.Provider, authUser.UserID)
+    if err != nil {
+        if err == pgx.ErrNoRows {
+            // User doesn't exist, create new one
+            dbUser, err = CreateUser(ctx, conn, authUser)
+            if err != nil {
+                return nil, fmt.Errorf("error creating user: %w", err)
+            }
+            log.Printf("New user created: %s (%s)", authUser.Name, authUser.Email)
+            return dbUser, nil
+        }
+        return nil, fmt.Errorf("error getting user: %w", err)
+    }
+    
+    log.Printf("User already exists: %s (DB ID: %d)", dbUser.Name, dbUser.ID)
+    return dbUser, nil
+}
+
+func GetUserByProviderID(ctx context.Context, conn *pgx.Conn, provider, userID string) (*DBUser, error) {
+    var dbUser DBUser
+    err := conn.QueryRow(ctx, `
+        SELECT 
+            ID, PROVIDER, USERID, NAME, NICKNAME, EMAIL, LOCATION, 
+            DESCRIPTION, ACCESSTOKEN, REFRESHTOKEN, EXPIRESAT, 
+            PICTURELINK, CREATED_AT, UPDATED_AT
+        FROM USERS 
+        WHERE PROVIDER = $1 AND USERID = $2`,
+        provider, userID,
+    ).Scan(
+        &dbUser.ID, &dbUser.Provider, &dbUser.UserID, &dbUser.Name, 
+        &dbUser.Nickname, &dbUser.Email, &dbUser.Location, &dbUser.Description,
+        &dbUser.AccessToken, &dbUser.RefreshToken, &dbUser.ExpiresAt,
+        &dbUser.PictureLink, &dbUser.CreatedAt, &dbUser.UpdatedAt,
+    )
+    
+    if err != nil {
+        return nil, err
+    }
+    
+    return &dbUser, nil
+}
+
+func CreateUser(ctx context.Context, conn *pgx.Conn, authUser goth.User) (*DBUser, error) {
+    var dbUser DBUser
+    
+    err := conn.QueryRow(ctx, `
+        INSERT INTO USERS (
+            PROVIDER, USERID, NAME, NICKNAME, EMAIL, LOCATION, 
+            DESCRIPTION, ACCESSTOKEN, REFRESHTOKEN, EXPIRESAT, PICTURELINK
+        ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+        )
+        RETURNING 
+            ID, PROVIDER, USERID, NAME, NICKNAME, EMAIL, LOCATION, 
+            DESCRIPTION, ACCESSTOKEN, REFRESHTOKEN, EXPIRESAT, 
+            PICTURELINK, CREATED_AT, UPDATED_AT`,
+        authUser.Provider,
+        authUser.UserID,
+        authUser.Name,
+        authUser.NickName,
+        authUser.Email,
+        authUser.Location,
+        authUser.Description,
+        authUser.AccessToken,
+        authUser.RefreshToken,
+        authUser.ExpiresAt,
+        authUser.AvatarURL,
+    ).Scan(
+        &dbUser.ID, &dbUser.Provider, &dbUser.UserID, &dbUser.Name, 
+        &dbUser.Nickname, &dbUser.Email, &dbUser.Location, &dbUser.Description,
+        &dbUser.AccessToken, &dbUser.RefreshToken, &dbUser.ExpiresAt,
+        &dbUser.PictureLink, &dbUser.CreatedAt, &dbUser.UpdatedAt,
+    )
+    
+    if err != nil {
+        return nil, fmt.Errorf("database insert error: %w", err)
+    }
+    
+    return &dbUser, nil
 }
