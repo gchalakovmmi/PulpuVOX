@@ -28,10 +28,8 @@ templ Base(title string, content templ.Component, styles templ.Component, script
 								<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 								<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 								<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
-								<style>
-												@BaseStyles()
-												@styles
-								</style>
+								@BaseStyles()
+								@styles
 				</head>
 				<body>
 								@navbar.Navbar(user)
@@ -40,10 +38,8 @@ templ Base(title string, content templ.Component, styles templ.Component, script
 								</div>
 								@footer.Footer()
 								<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-								<script>
-												@BaseScripts()
-												@scripts
-								</script>
+								@BaseScripts()
+								@scripts
 				</body>
 </html>
 }
