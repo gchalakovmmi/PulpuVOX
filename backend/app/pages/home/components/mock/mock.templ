@@ -1,7 +1,21 @@
 package mock
 
-import ()
+import (
+	"fmt"
+	"github.com/markbates/goth"
+)
 
-templ Mock() {
-				<h1>Hello World</h1>
+templ Mock(user goth.User) {
+	<img src={user.AvatarURL} width="80">
+	<p>Name: { user.Name }</p>
+	<p>Email: { user.Email }</p>
+	<p>NickName: { user.NickName }</p>
+	<p>Location: { user.Location }</p>
+	<p>Description: { user.Description }</p>
+	<p>UserID: { user.UserID }</p>
+	<p>Provider: { user.Provider }</p>
+	<p>AccessToken: { user.AccessToken }</p>
+	<p>RefreshToken: { user.RefreshToken }</p>
+	<p>ExpiresAt: { user.ExpiresAt.Format("2006-01-02 15:04") }</p>
+	<p>RawData: { fmt.Sprint(user.RawData) }</p>
 }

@@ -6,12 +6,12 @@ import (
 	"log"
 	"net/http"
 	"PulpuVOX/pages/home"
+	"PulpuVOX/pages/landing"
 	"github.com/a-h/templ"
 	"github.com/jackc/pgx/v5"
 	"github.com/gchalakovmmi/PulpuWEB/db"
 
 	"time"
-	"io"
 	"github.com/gchalakovmmi/PulpuWEB/auth"
 	"context"
 )
@@ -35,9 +35,8 @@ func main() {
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "favicon.ico")
 	})
-	http.Handle("/", http.RedirectHandler("/home", http.StatusSeeOther))
-	http.HandleFunc("/home", func(w http.ResponseWriter, r *http.Request) {
-		templ.Handler(home.Home()).ServeHTTP(w, r)
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		templ.Handler(landing.Landing()).ServeHTTP(w, r)
 	})
 	http.HandleFunc("/db-example", db.WithDB(dbConnectionDetails, func(w http.ResponseWriter, r *http.Request, conn *pgx.Conn){
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -49,7 +48,7 @@ func main() {
 				http.Error(w, "Database error", http.StatusInternalServerError)
 		}
 		fmt.Println(fld)
-		templ.Handler(home.Home()).ServeHTTP(w, r)
+		templ.Handler(landing.Landing()).ServeHTTP(w, r)
 	}))
 	// Authentication routes
 	http.HandleFunc("/auth/google", func(w http.ResponseWriter, r *http.Request) {
@@ -72,51 +71,26 @@ func main() {
 			return
 		}
 
-		http.Redirect(w, r, "/protected", http.StatusSeeOther)
+		http.Redirect(w, r, "/home", http.StatusSeeOther)
 	})
 
 	http.HandleFunc("/logout/google", func(w http.ResponseWriter, r *http.Request) {
 		googleAuth.LogoutHandler(w, r)
 		googleAuth.ClearSession(w)
-		http.Redirect(w, r, "/home", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 	})
 
 	// Protected route
-	http.HandleFunc("/protected", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/home", func(w http.ResponseWriter, r *http.Request) {
 		session, err := googleAuth.GetSession(r)
 		if err != nil {
 			http.Redirect(w, r, "/auth/google", http.StatusTemporaryRedirect)
 			return
 		}
+		user := session.User
 
 		// Render protected content using templ
-		comp := templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-			user := session.User
-				_, err := io.WriteString(w, `
-<html>
-<head><title>User Info</title></head>
-<body>
-	<img src="`+user.AvatarURL+`" width="80">
-	<pre>
-Name:          `+user.Name+`
-Email:         `+user.Email+`
-NickName:      `+user.NickName+`
-Location:      `+user.Location+`
-Description:   `+user.Description+`
-UserID:        `+user.UserID+`
-Provider:      `+user.Provider+`
-AccessToken:   `+user.AccessToken+`
-RefreshToken:  `+user.RefreshToken+`
-ExpiresAt:     `+user.ExpiresAt.Format("2006-01-02 15:04")+`
-RawData:       `+fmt.Sprint(user.RawData)+`
-	</pre>
-	<a href="/logout/google">Logout</a>
-</body>
-</html>`)
-				return err
-		})
-
-		templ.Handler(comp).ServeHTTP(w, r)
+		templ.Handler(home.Home(user)).ServeHTTP(w, r)
 	})
 
 	port := os.Getenv("BACKEND_PORT")

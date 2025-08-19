@@ -3,6 +3,7 @@ package home
 import (
 				"PulpuVOX/pages/base"
 				"PulpuVOX/pages/home/components/mock"
+				"github.com/markbates/goth"
 )
 
 templ HomeStyles() {
@@ -15,11 +16,10 @@ templ HomeScripts() {
 				@mock.Scripts()
 }
 
-templ HomeComponents() {
-				@Scripts()
-				@mock.Mock()
+templ HomeComponents(user goth.User) {
+				@mock.Mock(user)
 }
 
-templ Home() {
-				@base.Base("PulpuVOX", HomeComponents(), HomeStyles(), HomeScripts())
+templ Home(user goth.User) {
+				@base.Base("PulpuVOX", HomeComponents(user), HomeStyles(), HomeScripts())
 }
