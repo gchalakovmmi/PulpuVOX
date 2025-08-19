@@ -14,6 +14,4 @@ compile:
 
 run:
 	@echo "Runing $(BINARY)"
-	# env $$(cat vars.env | xargs) go run main.go
-	# env $$(cat vars.env | xargs) ./app
-	env $$(grep -v '^#' vars.env | xargs) ./$(BINARY)
+	env $$(grep -v '^#' vars.env | xargs) POSTGRES_IP=$$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' pulpuvox-database-1) ./$(BINARY)

@@ -4,7 +4,6 @@ import (
 	"os"
 	"fmt"
 	"log"
-	"strconv"
 	"net/http"
 	"PulpuVOX/pages/home"
 	"github.com/a-h/templ"
@@ -18,22 +17,31 @@ import (
 )
 
 func main() {
-	/////////////// DB Example ////////////////////
-	dbConnectionDetails := db.ConnectionDetails{
-		User: 		os.Getenv("POSTGRES_USER"),
-		Password:	os.Getenv("POSTGRES_PASSWORD"),
-		ServerIP:	os.Getenv("POSTGRES_CONTAINER_NAME"),
-		Schema:		os.Getenv("POSTGRES_DB"),
-	}
-	var err error
-	dbConnectionDetails.Port, err = strconv.Atoi(os.Getenv("POSTGRES_PORT"))
+	// Get db connection details
+	dbConnectionDetails, err := db.GetPostgresConfig()
 	if err != nil {
-		panic(fmt.Sprintf("Invalid POSTGRES_PORT: %v", err))
+			log.Fatalf("Failed to get Postgres config: %v", err)
 	}
 
-	http.HandleFunc("/test", db.WithDB(dbConnectionDetails, func(w http.ResponseWriter, r *http.Request, conn *pgx.Conn){
+	// Initialize authentication
+	authConfig, err := auth.GetGoogleAuthConfig()
+	if err != nil {
+		log.Fatalf("Error getting Google auth config: %v", err)
+	}
+
+	googleAuth := auth.NewGoogleAuth(authConfig)
+
+	// Handle routes
+	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "favicon.ico")
+	})
+	http.Handle("/", http.RedirectHandler("/home", http.StatusSeeOther))
+	http.HandleFunc("/home", func(w http.ResponseWriter, r *http.Request) {
+		templ.Handler(home.Home()).ServeHTTP(w, r)
+	})
+	http.HandleFunc("/db-example", db.WithDB(dbConnectionDetails, func(w http.ResponseWriter, r *http.Request, conn *pgx.Conn){
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	   defer cancel()
+		defer cancel()
 		var fld string
 		err := conn.QueryRow(ctx, "select 'Hello World!' as fld").Scan(&fld)
 		if err != nil {
@@ -43,33 +51,6 @@ func main() {
 		fmt.Println(fld)
 		templ.Handler(home.Home()).ServeHTTP(w, r)
 	}))
-	/////////////// DB Example ////////////////////
-
-	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "favicon.ico")
-	})
-	http.Handle("/", http.RedirectHandler("/home", http.StatusSeeOther))
-	http.HandleFunc("/home", func(w http.ResponseWriter, r *http.Request) {
-		templ.Handler(home.Home()).ServeHTTP(w, r)
-	})
-
-	/////////////// Authentication ////////////////////
-	// Initialize authentication
-	sessionDuration, _ := time.ParseDuration(os.Getenv("SESSION_DURATION"))
-	if sessionDuration == 0 {
-		sessionDuration = 24 * time.Hour
-	}
-
-	authConfig := &auth.Config{
-		GoogleKey:       os.Getenv("GOOGLE_KEY"),
-		GoogleSecret:    os.Getenv("GOOGLE_SECRET"),
-		CallbackURL:     "http://" + os.Getenv("DOMAIN") + "/auth/google/callback",
-		SecretKey:       []byte(os.Getenv("SESSION_SECRET")),
-		SessionDuration: sessionDuration,
-	}
-
-	googleAuth := auth.NewGoogleAuth(authConfig)
-
 	// Authentication routes
 	http.HandleFunc("/auth/google", func(w http.ResponseWriter, r *http.Request) {
 		if _, err := googleAuth.GetSession(r); err == nil {
@@ -111,37 +92,32 @@ func main() {
 		// Render protected content using templ
 		comp := templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
 			user := session.User
-			_, err := io.WriteString(w, `<!DOCTYPE html>
+				_, err := io.WriteString(w, `
 <html>
-<head>
-	<title>Protected Page</title>
-	<meta charset="UTF-8">
-	<meta name="referrer" content="no-referrer-when-downgrade">
-</head>
+<head><title>User Info</title></head>
 <body>
-	<h1>Protected Content</h1>
-	<p><a href="/logout/google">logout</a></p>
-	
-	<div>
-		<h2>User Profile</h2>
-		<p>Name: `+user.Name+`</p>
-		<p>Email: `+user.Email+`</p>
-		<p><img src="`+user.AvatarURL+`" width="50" referrerpolicy="no-referrer"></p>
-	</div>
-	
-	<div>
-		<h2>Session Information</h2>
-		<p>UserID: `+user.UserID+`</p>
-		<p>ExpiresAt: `+user.ExpiresAt.Format(time.RFC3339)+`</p>
-	</div>
+	<img src="`+user.AvatarURL+`" width="80">
+	<pre>
+Name:          `+user.Name+`
+Email:         `+user.Email+`
+NickName:      `+user.NickName+`
+Location:      `+user.Location+`
+Description:   `+user.Description+`
+UserID:        `+user.UserID+`
+Provider:      `+user.Provider+`
+AccessToken:   `+user.AccessToken+`
+RefreshToken:  `+user.RefreshToken+`
+ExpiresAt:     `+user.ExpiresAt.Format("2006-01-02 15:04")+`
+RawData:       `+fmt.Sprint(user.RawData)+`
+	</pre>
+	<a href="/logout/google">Logout</a>
 </body>
 </html>`)
-			return err
+				return err
 		})
 
 		templ.Handler(comp).ServeHTTP(w, r)
 	})
-	/////////////// Authentication ////////////////////
 
 	port := os.Getenv("BACKEND_PORT")
 	fmt.Printf("Serving on port %s ...\n", port)
