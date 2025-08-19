@@ -6,9 +6,10 @@ tool github.com/a-h/templ/cmd/templ
 
 require (
 	github.com/a-h/templ v0.3.924
-	github.com/gchalakovmmi/PulpuWEB/auth v0.0.0-20250819102621-0bdff21ba301
-	github.com/gchalakovmmi/PulpuWEB/db v0.0.0-20250819102621-0bdff21ba301
+	github.com/gchalakovmmi/PulpuWEB/auth v0.0.0-20250819200156-a09c0a7c1305
+	github.com/gchalakovmmi/PulpuWEB/db v0.0.0-20250819200156-a09c0a7c1305
 	github.com/jackc/pgx/v5 v5.7.5
+	github.com/markbates/goth v1.82.0
 )
 
 require (
@@ -26,7 +27,6 @@ require (
 	github.com/gorilla/sessions v1.1.1 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
-	github.com/markbates/goth v1.82.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/natefinch/atomic v1.0.1 // indirect

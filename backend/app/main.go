@@ -37,9 +37,9 @@ func main() {
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "static/logo/favicon.ico")
 	})
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/", googleAuth.WithOutGoogleAuth("/home", func(w http.ResponseWriter, r *http.Request) {
 		templ.Handler(landing.Landing()).ServeHTTP(w, r)
-	})
+	}))
 	// Authentication routes
 	http.HandleFunc("/auth/google", func(w http.ResponseWriter, r *http.Request) {
 		if _, err := googleAuth.GetSession(r); err == nil {
