@@ -1,0 +1,25 @@
+package conversation
+
+import (
+				"PulpuVOX/pages/base"
+				"PulpuVOX/pages/conversation/components/mock"
+				"github.com/markbates/goth"
+)
+
+templ ConversationStyles() {
+				@Styles()
+				@mock.Styles()
+}
+
+templ ConversationScripts() {
+				@Scripts()
+				@mock.Scripts()
+}
+
+templ ConversationComponents(user *goth.User) {
+				@mock.Mock(user)
+}
+
+templ Conversation(user *goth.User) {
+				@base.Base("PulpuVOX", ConversationComponents(user), ConversationStyles(), ConversationScripts(), user)
+}
