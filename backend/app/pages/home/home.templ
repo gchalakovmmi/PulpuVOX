@@ -16,10 +16,10 @@ templ HomeScripts() {
 				@mock.Scripts()
 }
 
-templ HomeComponents(user goth.User) {
+templ HomeComponents(user *goth.User) {
 				@mock.Mock(user)
 }
 
-templ Home(user goth.User) {
-				@base.Base("PulpuVOX", HomeComponents(user), HomeStyles(), HomeScripts())
+templ Home(user *goth.User) {
+				@base.Base("PulpuVOX", HomeComponents(user), HomeStyles(), HomeScripts(), user)
 }

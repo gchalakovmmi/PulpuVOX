@@ -43,7 +43,7 @@ func main() {
 	// Authentication routes
 	http.HandleFunc("/auth/google", func(w http.ResponseWriter, r *http.Request) {
 		if _, err := googleAuth.GetSession(r); err == nil {
-			http.Redirect(w, r, "/protected", http.StatusSeeOther)
+			http.Redirect(w, r, "/home", http.StatusSeeOther)
 			return
 		}
 		googleAuth.BeginAuthHandler(w, r)
@@ -91,7 +91,7 @@ func HomeHandler(w http.ResponseWriter, r *http.Request, conn *pgx.Conn, googleA
     }
     user := session.User
     
-    // Check and create user if needed
+    // Check and create or update user if needed
     dbUser, err := GetOrCreateUser(conn, user)
     if err != nil {
         log.Printf("User management error: %v", err)
@@ -102,7 +102,7 @@ func HomeHandler(w http.ResponseWriter, r *http.Request, conn *pgx.Conn, googleA
     log.Printf("User processed: %s (DB ID: %d)", dbUser.Name, dbUser.ID)
     
     // Render protected content using templ
-    templ.Handler(home.Home(user)).ServeHTTP(w, r)
+    templ.Handler(home.Home(&user)).ServeHTTP(w, r)
 }
 
 // User struct matching your database schema
@@ -142,7 +142,23 @@ func GetOrCreateUser(conn *pgx.Conn, authUser goth.User) (*DBUser, error) {
         return nil, fmt.Errorf("error getting user: %w", err)
     }
     
-    log.Printf("User already exists: %s (DB ID: %d)", dbUser.Name, dbUser.ID)
+    // User exists, check if any information needs updating
+    updated, err := UpdateUserIfChanged(ctx, conn, dbUser.ID, authUser)
+    if err != nil {
+        return nil, fmt.Errorf("error updating user: %w", err)
+    }
+    
+    if updated {
+        log.Printf("User information updated: %s (DB ID: %d)", authUser.Name, dbUser.ID)
+        // Get the updated user record
+        dbUser, err = GetUserByID(ctx, conn, dbUser.ID)
+        if err != nil {
+            return nil, fmt.Errorf("error getting updated user: %w", err)
+        }
+    } else {
+        log.Printf("User already exists with current information: %s (DB ID: %d)", dbUser.Name, dbUser.ID)
+    }
+    
     return dbUser, nil
 }
 
@@ -156,6 +172,30 @@ func GetUserByProviderID(ctx context.Context, conn *pgx.Conn, provider, userID s
         FROM USERS 
         WHERE PROVIDER = $1 AND USERID = $2`,
         provider, userID,
+    ).Scan(
+        &dbUser.ID, &dbUser.Provider, &dbUser.UserID, &dbUser.Name, 
+        &dbUser.Nickname, &dbUser.Email, &dbUser.Location, &dbUser.Description,
+        &dbUser.AccessToken, &dbUser.RefreshToken, &dbUser.ExpiresAt,
+        &dbUser.PictureLink, &dbUser.CreatedAt, &dbUser.UpdatedAt,
+    )
+    
+    if err != nil {
+        return nil, err
+    }
+    
+    return &dbUser, nil
+}
+
+func GetUserByID(ctx context.Context, conn *pgx.Conn, userID int) (*DBUser, error) {
+    var dbUser DBUser
+    err := conn.QueryRow(ctx, `
+        SELECT 
+            ID, PROVIDER, USERID, NAME, NICKNAME, EMAIL, LOCATION, 
+            DESCRIPTION, ACCESSTOKEN, REFRESHTOKEN, EXPIRESAT, 
+            PICTURELINK, CREATED_AT, UPDATED_AT
+        FROM USERS 
+        WHERE ID = $1`,
+        userID,
     ).Scan(
         &dbUser.ID, &dbUser.Provider, &dbUser.UserID, &dbUser.Name, 
         &dbUser.Nickname, &dbUser.Email, &dbUser.Location, &dbUser.Description,
@@ -207,4 +247,48 @@ func CreateUser(ctx context.Context, conn *pgx.Conn, authUser goth.User) (*DBUse
     }
     
     return &dbUser, nil
+}
+
+func UpdateUserIfChanged(ctx context.Context, conn *pgx.Conn, userID int, authUser goth.User) (bool, error) {
+    result, err := conn.Exec(ctx, `
+        UPDATE USERS SET
+            NAME = $1,
+            NICKNAME = $2,
+            EMAIL = $3,
+            LOCATION = $4,
+            DESCRIPTION = $5,
+            ACCESSTOKEN = $6,
+            REFRESHTOKEN = $7,
+            EXPIRESAT = $8,
+            PICTURELINK = $9,
+            UPDATED_AT = CURRENT_TIMESTAMP
+        WHERE ID = $10 AND (
+            NAME IS DISTINCT FROM $1 OR
+            NICKNAME IS DISTINCT FROM $2 OR
+            EMAIL IS DISTINCT FROM $3 OR
+            LOCATION IS DISTINCT FROM $4 OR
+            DESCRIPTION IS DISTINCT FROM $5 OR
+            ACCESSTOKEN IS DISTINCT FROM $6 OR
+            REFRESHTOKEN IS DISTINCT FROM $7 OR
+            EXPIRESAT IS DISTINCT FROM $8 OR
+            PICTURELINK IS DISTINCT FROM $9
+        )`,
+        authUser.Name,
+        authUser.NickName,
+        authUser.Email,
+        authUser.Location,
+        authUser.Description,
+        authUser.AccessToken,
+        authUser.RefreshToken,
+        authUser.ExpiresAt,
+        authUser.AvatarURL,
+        userID,
+    )
+    
+    if err != nil {
+        return false, fmt.Errorf("database update error: %w", err)
+    }
+    
+    rowsAffected := result.RowsAffected()
+    return rowsAffected > 0, nil
 }
