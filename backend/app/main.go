@@ -83,7 +83,7 @@ func main() {
 			}),
 		),
 	)
-	http.HandleFunc("/api/transcribe", handlers.TranscribeHandler(transcribeService))
+	http.HandleFunc("/api/conversation", handlers.APIConversationHandler(transcribeService))
 
 	port := os.Getenv("BACKEND_PORT")
 	fmt.Printf("Serving on port %s ...\n", port)
