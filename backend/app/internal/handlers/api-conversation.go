@@ -9,6 +9,7 @@ import (
     "log"
     "net/http"
     "os"
+    "regexp"
     "strings"
     "github.com/gchalakovmmi/PulpuWEB/whisper"
     "github.com/openai/openai-go/v2"
@@ -20,6 +21,31 @@ import (
 type ConversationTurn struct {
     Role    string `json:"role"`
     Content string `json:"content"`
+}
+
+// filterText removes emojis and markdown from text
+func filterText(text string) string {
+    // Remove emojis (Unicode characters outside the basic multilingual plane)
+    emojiRegex := regexp.MustCompile(`[\x{1F600}-\x{1F64F}]|[\x{1F300}-\x{1F5FF}]|[\x{1F680}-\x{1F6FF}]|[\x{1F700}-\x{1F77F}]|[\x{1F780}-\x{1F7FF}]|[\x{1F800}-\x{1F8FF}]|[\x{1F900}-\x{1F9FF}]|[\x{1FA00}-\x{1FA6F}]|[\x{1FA70}-\x{1FAFF}]|[\x{2600}-\x{26FF}]|[\x{2700}-\x{27BF}]`)
+    filtered := emojiRegex.ReplaceAllString(text, "")
+    
+    // Remove markdown symbols and formatting
+    markdownRegex := regexp.MustCompile(`[*_~`+"`"+`#\[\]()|]`)
+    filtered = markdownRegex.ReplaceAllString(filtered, "")
+    
+    // Remove URLs
+    urlRegex := regexp.MustCompile(`https?://\S+`)
+    filtered = urlRegex.ReplaceAllString(filtered, "")
+    
+    // Remove HTML tags
+    htmlRegex := regexp.MustCompile(`<[^>]*>`)
+    filtered = htmlRegex.ReplaceAllString(filtered, "")
+    
+    // Remove extra whitespace that might result from filtering
+    filtered = strings.TrimSpace(filtered)
+    filtered = strings.Join(strings.Fields(filtered), " ")
+    
+    return filtered
 }
 
 func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWriter, *http.Request, *pgx.Conn) {
@@ -80,7 +106,7 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
 
         // Build messages for LLM with history
         messages := []openai.ChatCompletionMessageParamUnion{
-            openai.SystemMessage("You are a helpful language learning assistant. Keep responses concise and engaging not longer than 2 sentences. Do not use emojis or markdown in your responses."),
+            openai.SystemMessage("You are a helpful language learning assistant. Keep responses concise and engaging. Do not use any emojis, markdown formatting, special symbols, or URLs in your responses. Use plain text only."),
         }
         
         // Add conversation history
@@ -110,13 +136,17 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
         llmResponse := chatCompletion.Choices[0].Message.Content
         log.Printf("LLM response: %s", llmResponse)
 
+        // Filter out emojis and markdown
+        filteredResponse := filterText(llmResponse)
+        log.Printf("Filtered response: %s", filteredResponse)
+
         // Initialize HTTP client for TTS (KittenTTS)
         ttsURL := os.Getenv("OPENAI_TTS_URL") + "/v1/audio/speech"
 
-        // Create TTS request
+        // Create TTS request with filtered response
         ttsRequest := map[string]interface{}{
             "model":           "kitten-tts",
-            "input":           llmResponse,
+            "input":           filteredResponse,
             "voice":           "expr-voice-4-f",
             "response_format": "mp3",
             "speed":           0.9,
@@ -183,15 +213,15 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
         // Encode audio to base64 for JSON response
         audioBase64 := base64.StdEncoding.EncodeToString(audioBytes)
 
-        // Update history with new turns
+        // Update history with new turns (using filtered response)
         history = append(history, ConversationTurn{Role: "user", Content: result.Text})
-        history = append(history, ConversationTurn{Role: "assistant", Content: llmResponse})
+        history = append(history, ConversationTurn{Role: "assistant", Content: filteredResponse})
 
         w.Header().Set("Content-Type", "application/json")
         json.NewEncoder(w).Encode(map[string]interface{}{
             "status":           "success",
             "transcribed_text": result.Text,
-            "llm_response":     llmResponse,
+            "llm_response":     filteredResponse,
             "audio_base64":     audioBase64,
             "history":          history,
         })
