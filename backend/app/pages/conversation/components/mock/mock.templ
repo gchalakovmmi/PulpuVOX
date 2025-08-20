@@ -5,24 +5,18 @@ import (
 )
 
 templ Mock(user *goth.User) {
-<div class="container">
-				<h1>Audio Recorder</h1>
-				<p class="description">Record audio from your microphone and download it as an MP3 file</p>
+		<div class="container">
+				<div class="header">
+						<h1>Audio Recorder</h1>
+				</div>
 				
-				<div class="recorder-panel">
-						<div class="controls">
-								<button id="startButton">Start Recording</button>
-								<button id="stopButton" disabled>Stop Recording</button>
-						</div>
+				<div class="content">
+						<div class="status" id="status">Ready to start</div>
 						
-						<div id="status" class="status ready">Ready to record</div>
+						<div class="buttons">
+								<button id="startButton">Start</button>
+								<button id="endButton" disabled>End Turn</button>
+						</div>
 				</div>
-				
-				<div class="download-section">
-						<p>Your recording will appear here when complete</p>
-						<a id="downloadLink" style="display: none;">Download MP3</a>
-				</div>
-</div>
-		
-		<p class="info">Note: For security reasons, browsers require HTTPS for microphone access.</p>
+		</div>
 }

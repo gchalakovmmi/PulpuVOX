@@ -3,201 +3,177 @@ package mock
 import ()
 
 templ Scripts() {
-    <!-- Include lamejs for MP3 encoding -->
-    <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.0/lame.min.js"></script>
-    
-    <script>
-        // Variables to manage recording state
-        let mediaRecorder;
-        let audioChunks = [];
-        let stream;
-        
-        // Get references to UI elements
-        const startButton = document.getElementById('startButton');
-        const stopButton = document.getElementById('stopButton');
-        const statusText = document.getElementById('status');
-        const downloadLink = document.getElementById('downloadLink');
-        
-        // Check if the browser supports the required APIs
-        function checkCompatibility() {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                statusText.textContent = "Your browser doesn't support audio recording.";
-                return false;
-            }
-            
-            if (!window.MediaRecorder) {
-                statusText.textContent = "MediaRecorder API is not supported in your browser.";
-                return false;
-            }
-            
-            if (typeof lamejs === 'undefined') {
-                statusText.textContent = "MP3 encoding library failed to load.";
-                return false;
-            }
-            
-            return true;
-        }
-        
-        // Initialize the application
-        function init() {
-            if (checkCompatibility()) {
-                startButton.disabled = false;
-                statusText.textContent = "Ready to record. Click Start to begin.";
-            }
-        }
-        
-        // Event handler for the start button
-        startButton.addEventListener('click', async () => {
-            try {
-                statusText.textContent = "Accessing microphone...";
-                statusText.className = "status processing";
-                
-                // Request access to the microphone
-                stream = await navigator.mediaDevices.getUserMedia({ 
-                    audio: {
-                        channelCount: 1,
-                        sampleRate: 44100,
-                        sampleSize: 16
-                    } 
-                });
-                
-                // Create a media recorder instance
-                mediaRecorder = new MediaRecorder(stream);
-                
-                // Event handler for when data is available
-                mediaRecorder.ondataavailable = (event) => {
-                    if (event.data.size > 0) {
-                        audioChunks.push(event.data);
-                    }
-                };
-                
-                // Event handler for when recording stops
-                mediaRecorder.onstop = () => {
-                    statusText.textContent = "Processing your recording...";
-                    statusText.className = "status processing";
-                    
-                    // Create a blob from the audio chunks
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                    
-                    // Convert to MP3
-                    convertToMp3(audioBlob);
-                };
-                
-                // Start recording
-                mediaRecorder.start();
-                
-                // Update UI
-                startButton.disabled = true;
-                stopButton.disabled = false;
-                statusText.innerHTML = '<span class="pulse"></span> Recording... Speak now!';
-                statusText.className = "status recording";
-                downloadLink.style.display = 'none';
-                
-            } catch (error) {
-                console.error("Error accessing microphone:", error);
-                statusText.textContent = "Error accessing microphone: " + error.message;
-                statusText.className = "status";
-                startButton.disabled = false;
-            }
-        });
-        
-        // Event handler for the stop button
-        stopButton.addEventListener('click', () => {
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
-                
-                // Update UI
-                stopButton.disabled = true;
-            }
-        });
-        
-        // Function to convert audio to MP3 using lamejs
-        function convertToMp3(blob) {
-            // Create a file reader to read the blob
-            const reader = new FileReader();
-            
-            reader.onload = function() {
-                // Create audio context to decode audio
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                
-                audioContext.decodeAudioData(reader.result, function(buffer) {
-                    // Get the PCM data from the buffer
-                    const pcmData = buffer.getChannelData(0);
-                    const sampleRate = buffer.sampleRate;
-                    
-                    // Initialize the MP3 encoder
-                    const mp3Encoder = new lamejs.Mp3Encoder(1, sampleRate, 128);
-                    
-                    // Convert float32 to int16
-                    const samples = new Int16Array(pcmData.length);
-                    for (let i = 0; i < pcmData.length; i++) {
-                        samples[i] = pcmData[i] * 32767;
-                    }
-                    
-                    // Encode the PCM data to MP3
-                    const mp3Data = [];
-                    const sampleBlockSize = 1152;
-                    
-                    for (let i = 0; i < samples.length; i += sampleBlockSize) {
-                        const chunk = samples.subarray(i, i + sampleBlockSize);
-                        const mp3Buffer = mp3Encoder.encodeBuffer(chunk);
-                        if (mp3Buffer.length > 0) {
-                            mp3Data.push(mp3Buffer);
-                        }
-                    }
-                    
-                    // Finalize the encoding
-                    const finalBuffer = mp3Encoder.flush();
-                    if (finalBuffer.length > 0) {
-                        mp3Data.push(finalBuffer);
-                    }
-                    
-                    // Combine all MP3 data
-                    const combined = new Uint8Array(mp3Data.reduce((acc, val) => {
-                        const newArray = new Uint8Array(acc.length + val.length);
-                        newArray.set(acc);
-                        newArray.set(val, acc.length);
-                        return newArray;
-                    }, new Uint8Array()));
-                    
-                    // Create a blob from the MP3 data
-                    const mp3Blob = new Blob([combined], { type: 'audio/mp3' });
-                    const url = URL.createObjectURL(mp3Blob);
-                    
-                    // Update the download link
-                    downloadLink.href = url;
-                    downloadLink.download = 'recording.mp3';
-                    downloadLink.style.display = 'inline-block';
-                    downloadLink.textContent = 'Download MP3 (' + 
-                        Math.round(mp3Blob.size / 1024) + ' KB)';
-                    
-                    // Update status
-                    statusText.textContent = "Recording complete! Ready to record again.";
-                    statusText.className = "status ready";
-                    startButton.disabled = false;
-                    
-                    // Clean up
-                    audioChunks = [];
-                }, function(error) {
-                    console.error("Error decoding audio:", error);
-                    statusText.textContent = "Error processing audio: " + error.message;
-                    statusText.className = "status";
-                    startButton.disabled = false;
-                });
-            };
-            
-            reader.onerror = function(error) {
-                console.error("Error reading blob:", error);
-                statusText.textContent = "Error processing recording: " + error.message;
-                statusText.className = "status";
-                startButton.disabled = false;
-            };
-            
-            // Read the blob as array buffer
-            reader.readAsArrayBuffer(blob);
-        }
-        
-        // Initialize the application when the page loads
-        window.onload = init;
-    </script>
+		<!-- Include lamejs for MP3 encoding -->
+		<script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.0/lame.min.js"></script>
+		<script>
+				// Variables to manage recording state
+				let mediaRecorder;
+				let audioChunks = [];
+				let stream;
+				
+				// Get references to UI elements
+				const startButton = document.getElementById('startButton');
+				const endButton = document.getElementById('endButton');
+				const statusText = document.getElementById('status');
+				
+				// Example MP3 URL
+				const exampleMp3Url = 'https://www.computerhope.com/jargon/m/example.mp3';
+				
+				// Event handler for the start button
+				startButton.addEventListener('click', async () => {
+						try {
+								startButton.disabled = true;
+								statusText.innerHTML = '<span class="indicator"></span> Playing audio...';
+								
+								// Play the example MP3
+								const audio = new Audio(exampleMp3Url);
+								audio.play();
+								
+								// When audio ends, start recording
+								audio.onended = async () => {
+										statusText.innerHTML = '<span class="indicator pulse"></span> Recording...';
+										
+										// Request access to the microphone
+										stream = await navigator.mediaDevices.getUserMedia({ 
+												audio: {
+														channelCount: 1,
+														sampleRate: 44100,
+														sampleSize: 16
+												} 
+										});
+										
+										// Create a media recorder instance
+										mediaRecorder = new MediaRecorder(stream);
+										
+										// Event handler for when data is available
+										mediaRecorder.ondataavailable = (event) => {
+												if (event.data.size > 0) {
+														audioChunks.push(event.data);
+												}
+										};
+										
+										// Event handler for when recording stops
+										mediaRecorder.onstop = () => {
+												statusText.innerHTML = '<span class="indicator"></span> Processing...';
+												
+												// Create a blob from the audio chunks
+												const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+												
+												// Convert to MP3
+												convertToMp3(audioBlob);
+										};
+										
+										// Start recording
+										mediaRecorder.start();
+										
+										// Update UI
+										endButton.disabled = false;
+								};
+								
+						} catch (error) {
+								console.error("Error:", error);
+								statusText.textContent = "Error: " + error.message;
+								startButton.disabled = false;
+						}
+				});
+				
+				// Event handler for the end button
+				endButton.addEventListener('click', () => {
+						if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+								mediaRecorder.stop();
+								
+								// Update UI
+								endButton.disabled = true;
+						}
+				});
+				
+				// Function to convert audio to MP3 using lamejs
+				function convertToMp3(blob) {
+						// Create a file reader to read the blob
+						const reader = new FileReader();
+						
+						reader.onload = function() {
+								// Create audio context to decode audio
+								const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+								
+								audioContext.decodeAudioData(reader.result, function(buffer) {
+										// Get the PCM data from the buffer
+										const pcmData = buffer.getChannelData(0);
+										const sampleRate = buffer.sampleRate;
+										
+										// Initialize the MP3 encoder
+										const mp3Encoder = new lamejs.Mp3Encoder(1, sampleRate, 128);
+										
+										// Convert float32 to int16
+										const samples = new Int16Array(pcmData.length);
+										for (let i = 0; i < pcmData.length; i++) {
+												samples[i] = pcmData[i] * 32767;
+										}
+										
+										// Encode the PCM data to MP3
+										const mp3Data = [];
+										const sampleBlockSize = 1152;
+										
+										for (let i = 0; i < samples.length; i += sampleBlockSize) {
+												const chunk = samples.subarray(i, i + sampleBlockSize);
+												const mp3Buffer = mp3Encoder.encodeBuffer(chunk);
+												if (mp3Buffer.length > 0) {
+														mp3Data.push(mp3Buffer);
+												}
+										}
+										
+										// Finalize the encoding
+										const finalBuffer = mp3Encoder.flush();
+										if (finalBuffer.length > 0) {
+												mp3Data.push(finalBuffer);
+										}
+										
+										// Combine all MP3 data
+										const combined = new Uint8Array(mp3Data.reduce((acc, val) => {
+												const newArray = new Uint8Array(acc.length + val.length);
+												newArray.set(acc);
+												newArray.set(val, acc.length);
+												return newArray;
+										}, new Uint8Array()));
+										
+										// Create a blob from the MP3 data
+										const mp3Blob = new Blob([combined], { type: 'audio/mp3' });
+										const url = URL.createObjectURL(mp3Blob);
+										
+										// Create download link
+										const a = document.createElement('a');
+										a.href = url;
+										a.download = 'recording.mp3';
+										document.body.appendChild(a);
+										a.click();
+										
+										// Clean up
+										setTimeout(() => {
+												document.body.removeChild(a);
+												URL.revokeObjectURL(url);
+										}, 100);
+										
+										// Update status
+										statusText.textContent = "Recording saved!";
+										startButton.disabled = false;
+										
+										// Clean up
+										audioChunks = [];
+								}, function(error) {
+										console.error("Error decoding audio:", error);
+										statusText.textContent = "Error processing audio";
+										startButton.disabled = false;
+								});
+						};
+						
+						reader.onerror = function(error) {
+								console.error("Error reading blob:", error);
+								statusText.textContent = "Error processing recording";
+								startButton.disabled = false;
+						};
+						
+						// Read the blob as array buffer
+						reader.readAsArrayBuffer(blob);
+				}
+		</script>
 }
