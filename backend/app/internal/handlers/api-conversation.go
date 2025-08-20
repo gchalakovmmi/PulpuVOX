@@ -57,14 +57,14 @@ func APIConversationHandler(ts *whisper.TranscribeService) http.HandlerFunc {
         }
 
         // Log Ollama response
-        ollamaResponse := chatCompletion.Choices[0].Message.Content
-        log.Printf("OPENAI response: %s", ollamaResponse)
+        llmResponse := chatCompletion.Choices[0].Message.Content
+        log.Printf("OPENAI response: %s", llmResponse)
 
         w.Header().Set("Content-Type", "application/json")
         json.NewEncoder(w).Encode(map[string]string{
             "status": "success",
             "transcribed_text": result.Text,
-            "ollama_response": ollamaResponse,
+            "llm_response": llmResponse,
         })
     }
 }
