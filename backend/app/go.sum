@@ -19,6 +19,8 @@ github.com/fsnotify/fsnotify v1.7.0 h1:8JEhPFa5W2WU7YfeZzPNqzMP6Lwt7L2715Ggo0nos
 github.com/fsnotify/fsnotify v1.7.0/go.mod h1:40Bi/Hjc2AVfZrqy+aj+yEI+/bRxZnMJyTJwOpGvigM=
 github.com/gchalakovmmi/PulpuWEB v1.0.8 h1:ziH81jcYd9RpvYkgQtcCIkvJEBPK2IJOm+KlteWsOYM=
 github.com/gchalakovmmi/PulpuWEB v1.0.8/go.mod h1:CeObynisRVx9j07cMRdv2Z12nHxsgZEcQRyJemQBw9w=
+github.com/gchalakovmmi/PulpuWEB v1.0.9 h1:IYKNGr9bIazxsiVBNzgOsH6qVR8MitpDlnPD7JeO2F4=
+github.com/gchalakovmmi/PulpuWEB v1.0.9/go.mod h1:CeObynisRVx9j07cMRdv2Z12nHxsgZEcQRyJemQBw9w=
 github.com/gchalakovmmi/PulpuWEB/auth v0.0.0-20250820231528-f2af04fc75f6 h1:HM19oGwWlv/AL8X5EyNu0lw9rOpgUbPO3Z5SiROb8bs=
 github.com/gchalakovmmi/PulpuWEB/auth v0.0.0-20250820231528-f2af04fc75f6/go.mod h1:6Wg/29Sp4otmwzISYcDYcH4Koy1weIzibKSzNA21a2c=
 github.com/gchalakovmmi/PulpuWEB/db v0.0.0-20250820231528-f2af04fc75f6 h1:XcM16SlKSDhGCoryUsJaT0f0H1Fgzy0nubAqX+Jv/lQ=
