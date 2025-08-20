@@ -37,6 +37,7 @@ func main() {
 	}
 
 	// Handle routes
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "static/logo/favicon.ico")
 	})
