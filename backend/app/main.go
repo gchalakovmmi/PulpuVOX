@@ -84,7 +84,34 @@ func main() {
 			}),
 		),
 	)
-	http.HandleFunc("/api/conversation", handlers.APIConversationHandler(transcribeService))
+	http.HandleFunc("/api/conversation/turn",
+			googleAuth.WithGoogleAuth(
+					db.WithDB(dbConnectionDetails, func(w http.ResponseWriter, r *http.Request, conn *pgx.Conn) {
+							handlers.APIConversationHandler(transcribeService)(w, r, conn)
+					}),
+			),
+	)
+	http.HandleFunc("/api/conversation/end",
+			googleAuth.WithGoogleAuth(
+					db.WithDB(dbConnectionDetails, func(w http.ResponseWriter, r *http.Request, conn *pgx.Conn) {
+							handlers.ConversationEndHandler(w, r, conn, googleAuth)
+					}),
+			),
+	)
+	http.HandleFunc("/conversation-analysis",
+    googleAuth.WithGoogleAuth(
+        db.WithDB(dbConnectionDetails, func(w http.ResponseWriter, r *http.Request, conn *pgx.Conn) {
+            handlers.ConversationAnalysisHandler(w, r, conn, googleAuth)
+        }),
+    ),
+	)
+	http.HandleFunc("/api/conversation/latest",
+    googleAuth.WithGoogleAuth(
+        db.WithDB(dbConnectionDetails, func(w http.ResponseWriter, r *http.Request, conn *pgx.Conn) {
+            handlers.GetLatestConversationHandler(w, r, conn, googleAuth)
+        }),
+    ),
+	)
 
 	port := os.Getenv("BACKEND_PORT")
 	fmt.Printf("Serving on port %s ...\n", port)

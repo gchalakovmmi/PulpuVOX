@@ -9,81 +9,120 @@ templ Scripts() {
         let mediaRecorder;
         let audioChunks = [];
         let stream;
+        let conversationHistory = [];
+        let isFirstTurn = true;
+        let isRecording = false;
+
         // Get references to UI elements
         const startButton = document.getElementById('startButton');
         const endButton = document.getElementById('endButton');
+        const endConversationButton = document.getElementById('endConversationButton');
         const statusText = document.getElementById('status');
-        
+
         // Hello sound URL
         const helloSoundUrl = "/static/audio/hello.mp3";
-        
+
+        // Function to start recording automatically
+        function startRecordingAutomatically() {
+            if (isFirstTurn) {
+                // For first turn, play hello sound first
+                startButton.click();
+                isFirstTurn = false;
+            } else {
+                // For subsequent turns, start recording immediately
+                startRecordingProcess();
+            }
+        }
+
+        // Function to handle the recording process
+        async function startRecordingProcess() {
+            try {
+                if (isRecording) return; // Prevent multiple recordings
+                
+                isRecording = true;
+                startButton.disabled = true;
+                statusText.innerHTML = '<span class="indicator"></span> Starting recording...';
+                
+                // Stop any existing stream
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                
+                // Request access to the microphone
+                stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        channelCount: 1,
+                        sampleRate: 44100,
+                        sampleSize: 16
+                    }
+                });
+                
+                // Create a media recorder instance
+                mediaRecorder = new MediaRecorder(stream);
+                
+                // Reset audio chunks
+                audioChunks = [];
+                
+                // Event handler for when data is available
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+                
+                // Event handler for when recording stops
+                mediaRecorder.onstop = () => {
+                    statusText.innerHTML = '<span class="indicator"></span> Processing...';
+                    // Create a blob from the audio chunks
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    // Convert to MP3
+                    convertToMp3(audioBlob);
+                    isRecording = false;
+                };
+                
+                // Start recording
+                mediaRecorder.start();
+                statusText.innerHTML = '<span class="indicator pulse"></span> Recording... Speak now';
+                
+                // Update UI
+                endButton.disabled = false;
+                
+            } catch (error) {
+                console.error("Error:", error);
+                statusText.textContent = "Error: " + error.message;
+                startButton.disabled = false;
+                isRecording = false;
+            }
+        }
+
         // Event handler for the start button
         startButton.addEventListener('click', async () => {
             try {
                 startButton.disabled = true;
                 statusText.innerHTML = '<span class="indicator"></span> Playing hello sound...';
-                
+
                 // Play the hello sound
                 const helloSound = new Audio(helloSoundUrl);
-                
                 helloSound.onended = async () => {
-                    statusText.innerHTML = '<span class="indicator"></span> Starting recording...';
-                    
-                    // Request access to the microphone
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        audio: {
-                            channelCount: 1,
-                            sampleRate: 44100,
-                            sampleSize: 16
-                        }
-                    });
-                    
-                    // Create a media recorder instance
-                    mediaRecorder = new MediaRecorder(stream);
-                    
-                    // Event handler for when data is available
-                    mediaRecorder.ondataavailable = (event) => {
-                        if (event.data.size > 0) {
-                            audioChunks.push(event.data);
-                        }
-                    };
-                    
-                    // Event handler for when recording stops
-                    mediaRecorder.onstop = () => {
-                        statusText.innerHTML = '<span class="indicator"></span> Processing...';
-                        // Create a blob from the audio chunks
-                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                        // Convert to MP3
-                        convertToMp3(audioBlob);
-                    };
-                    
-                    // Start recording
-                    mediaRecorder.start();
-                    statusText.innerHTML = '<span class="indicator pulse"></span> Recording... Speak now';
-                    
-                    // Update UI
-                    endButton.disabled = false;
+                    await startRecordingProcess();
                 };
-                
                 helloSound.onerror = (error) => {
                     console.error("Error playing hello sound:", error);
                     statusText.textContent = "Error playing hello sound";
                     startButton.disabled = false;
                 };
-                
                 helloSound.play().catch(error => {
                     console.error("Failed to play hello sound:", error);
                     statusText.textContent = "Failed to play hello sound";
                     startButton.disabled = false;
                 });
-                
             } catch (error) {
                 console.error("Error:", error);
                 statusText.textContent = "Error: " + error.message;
                 startButton.disabled = false;
             }
         });
-        
+
         // Event handler for the end button
         endButton.addEventListener('click', () => {
             if (mediaRecorder && mediaRecorder.state !== 'inactive') {
@@ -92,7 +131,33 @@ templ Scripts() {
                 endButton.disabled = true;
             }
         });
-        
+
+        // Event handler for the end conversation button
+        endConversationButton.addEventListener('click', endConversation);
+
+        function endConversation() {
+            fetch('/api/conversation/end', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ history: conversationHistory })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to end conversation');
+                }
+                return response.json();
+            })
+            .then(data => {
+                window.location.href = data.redirect;
+            })
+            .catch(error => {
+                console.error('Error ending conversation:', error);
+                statusText.textContent = "Error ending conversation: " + error.message;
+            });
+        }
+
         // Function to convert audio to MP3 using lamejs
         function convertToMp3(blob) {
             // Create a file reader to read the blob
@@ -104,16 +169,13 @@ templ Scripts() {
                     // Get the PCM data from the buffer
                     const pcmData = buffer.getChannelData(0);
                     const sampleRate = buffer.sampleRate;
-                    
                     // Initialize the MP3 encoder
                     const mp3Encoder = new lamejs.Mp3Encoder(1, sampleRate, 128);
-                    
                     // Convert float32 to int16
                     const samples = new Int16Array(pcmData.length);
                     for (let i = 0; i < pcmData.length; i++) {
                         samples[i] = pcmData[i] * 32767;
                     }
-                    
                     // Encode the PCM data to MP3
                     const mp3Data = [];
                     const sampleBlockSize = 1152;
@@ -124,13 +186,11 @@ templ Scripts() {
                             mp3Data.push(mp3Buffer);
                         }
                     }
-                    
                     // Finalize the encoding
                     const finalBuffer = mp3Encoder.flush();
                     if (finalBuffer.length > 0) {
                         mp3Data.push(finalBuffer);
                     }
-                    
                     // Combine all MP3 data
                     const combined = new Uint8Array(mp3Data.reduce((acc, val) => {
                         const newArray = new Uint8Array(acc.length + val.length);
@@ -138,10 +198,8 @@ templ Scripts() {
                         newArray.set(val, acc.length);
                         return newArray;
                     }, new Uint8Array()));
-                    
                     // Create a blob from the MP3 data
                     const mp3Blob = new Blob([combined], { type: 'audio/mp3' });
-                    
                     // Send to server for transcription and TTS
                     sendToServer(mp3Blob);
                 }, function(error) {
@@ -155,62 +213,76 @@ templ Scripts() {
                 statusText.textContent = "Error processing recording";
                 startButton.disabled = false;
             };
-            
             // Read the blob as array buffer
             reader.readAsArrayBuffer(blob);
         }
-        
+
         // Function to send MP3 to server
-        function sendToServer(mp3Blob) {
-            const formData = new FormData();
-            formData.append('audio', mp3Blob, 'recording.mp3');
-            
-            fetch('/api/conversation', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Server returned an error: ' + response.status);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('API response:', data);
-                
-                // Play the audio if available
-                if (data.audio_base64) {
-                    const audio = new Audio("data:audio/mp3;base64," + data.audio_base64);
-                    
-                    audio.onended = function() {
-                        statusText.textContent = "Conversation complete! Ready for next turn";
-                        startButton.disabled = false;
-                        audioChunks = []; // Reset for next recording
-                    };
-                    
-                    audio.onerror = function(e) {
-                        console.error("Audio playback failed:", e);
-                        statusText.textContent = "Audio playback failed";
-                        startButton.disabled = false;
-                    };
-                    
-                    audio.play().catch(e => {
-                        console.error("Audio play error:", e);
-                        statusText.textContent = "Error playing audio: " + e.message;
-                        startButton.disabled = false;
-                    });
-                    
-                    statusText.innerHTML = '<span class="indicator"></span> Playing response...';
-                } else {
-                    statusText.textContent = "Conversation complete! (No audio response)";
-                    startButton.disabled = false;
-                }
-            })
-            .catch(error => {
-                console.error('Error sending to server:', error);
-                statusText.textContent = "Error: " + error.message;
-                startButton.disabled = false;
-            });
-        }
+				function sendToServer(mp3Blob) {
+						const formData = new FormData();
+						formData.append('audio', mp3Blob, 'recording.mp3');
+						formData.append('history', JSON.stringify(conversationHistory));
+
+						fetch('/api/conversation/turn', {
+								method: 'POST',
+								body: formData
+						})
+						.then(response => {
+								if (!response.ok) {
+										throw new Error('Server returned an error: ' + response.status);
+								}
+								return response.json();
+						})
+						.then(data => {
+								console.log('API response:', data);
+								// Update the conversation history
+								conversationHistory = data.history;
+								
+								// Play the audio if available
+								if (data.audio_base64) {
+										const audio = new Audio("data:audio/mp3;base64," + data.audio_base64);
+										audio.onended = function() {
+												statusText.textContent = "Ready for next turn";
+												// Reset for next recording
+												audioChunks = [];
+												// Automatically start recording for the next turn
+												setTimeout(() => {
+														startRecordingProcess();
+												}, 500); // Small delay before starting next recording
+										};
+										audio.onerror = function(e) {
+												console.error("Audio playback failed:", e);
+												statusText.textContent = "Audio playback failed";
+												// Still try to start recording
+												setTimeout(() => {
+														startRecordingProcess();
+												}, 500);
+										};
+										audio.play().catch(e => {
+												console.error("Audio play error:", e);
+												statusText.textContent = "Error playing audio: " + e.message;
+												// Still try to start recording
+												setTimeout(() => {
+														startRecordingProcess();
+												}, 500);
+										});
+										statusText.innerHTML = '<span class="indicator"></span> Playing response...';
+								} else {
+										statusText.textContent = "Ready for next turn (No audio response)";
+										// Automatically start recording for the next turn
+										setTimeout(() => {
+												startRecordingProcess();
+										}, 500);
+								}
+						})
+						.catch(error => {
+								console.error('Error sending to server:', error);
+								statusText.textContent = "Error: " + error.message;
+								// Try to start recording again
+								setTimeout(() => {
+										startRecordingProcess();
+								}, 500);
+						});
+				}
     </script>
 }

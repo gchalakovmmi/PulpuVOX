@@ -10,14 +10,46 @@ import (
     "net/http"
     "os"
     "strings"
-
     "github.com/gchalakovmmi/PulpuWEB/whisper"
     "github.com/openai/openai-go/v2"
     "github.com/openai/openai-go/v2/option"
+    "github.com/jackc/pgx/v5"
 )
 
-func APIConversationHandler(ts *whisper.TranscribeService) http.HandlerFunc {
-    return func(w http.ResponseWriter, r *http.Request) {
+// ConversationTurn represents a single turn in the conversation
+type ConversationTurn struct {
+    Role    string `json:"role"`
+    Content string `json:"content"`
+}
+
+func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWriter, *http.Request, *pgx.Conn) {
+    return func(w http.ResponseWriter, r *http.Request, conn *pgx.Conn) {
+        // Parse the multipart form
+        if err := r.ParseMultipartForm(10 << 20); err != nil { // 10 MB
+            http.Error(w, "Unable to parse form", http.StatusBadRequest)
+            return
+        }
+
+        // Get the history from the form
+        historyJSON := r.FormValue("history")
+        var history []ConversationTurn
+        if historyJSON != "" {
+            if err := json.Unmarshal([]byte(historyJSON), &history); err != nil {
+                http.Error(w, "Invalid history format", http.StatusBadRequest)
+                return
+            }
+        }
+
+        // Add hello message as first turn if history is empty
+        if len(history) == 0 {
+            history = []ConversationTurn{
+                {
+                    Role:    "assistant",
+                    Content: "Hello! What would you like to talk about today?",
+                },
+            }
+        }
+
         audioData, fileName, err := whisper.ParseAudioFromRequest(r)
         if err != nil {
             http.Error(w, "Unable to process audio: "+err.Error(), http.StatusBadRequest)
@@ -38,7 +70,6 @@ func APIConversationHandler(ts *whisper.TranscribeService) http.HandlerFunc {
             http.Error(w, "Transcription failed: "+err.Error(), http.StatusInternalServerError)
             return
         }
-
         log.Printf("Transcribed text: %s", result.Text)
 
         // Initialize OpenAI client for LLM
@@ -47,11 +78,26 @@ func APIConversationHandler(ts *whisper.TranscribeService) http.HandlerFunc {
             option.WithAPIKey(os.Getenv("OPENAI_KEY")),
         )
 
+        // Build messages for LLM with history
+        messages := []openai.ChatCompletionMessageParamUnion{
+            openai.SystemMessage("You are a helpful language learning assistant. Keep responses concise and engaging not longer than 2 sentences. Do not use emojis or markdown in your responses."),
+        }
+        
+        // Add conversation history
+        for _, turn := range history {
+            if turn.Role == "user" {
+                messages = append(messages, openai.UserMessage(turn.Content))
+            } else if turn.Role == "assistant" {
+                messages = append(messages, openai.AssistantMessage(turn.Content))
+            }
+        }
+        
+        // Add current user message
+        messages = append(messages, openai.UserMessage(result.Text))
+
         // Send transcribed text to LLM
         chatCompletion, err := llmClient.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
-            Messages: []openai.ChatCompletionMessageParamUnion{
-                openai.UserMessage(result.Text),
-            },
+            Messages: messages,
             Model: openai.ChatModel(os.Getenv("OPENAI_MODEL")),
         })
         if err != nil {
@@ -66,8 +112,8 @@ func APIConversationHandler(ts *whisper.TranscribeService) http.HandlerFunc {
 
         // Initialize HTTP client for TTS (KittenTTS)
         ttsURL := os.Getenv("OPENAI_TTS_URL") + "/v1/audio/speech"
-        
-        // Create TTS request - using exact parameters from your working curl command
+
+        // Create TTS request
         ttsRequest := map[string]interface{}{
             "model":           "kitten-tts",
             "input":           llmResponse,
@@ -75,16 +121,12 @@ func APIConversationHandler(ts *whisper.TranscribeService) http.HandlerFunc {
             "response_format": "mp3",
             "speed":           0.9,
         }
-
         jsonData, err := json.Marshal(ttsRequest)
         if err != nil {
             log.Printf("Failed to marshal TTS request: %v", err)
             http.Error(w, "Failed to prepare TTS request", http.StatusInternalServerError)
             return
         }
-
-        log.Printf("Sending TTS request to: %s", ttsURL)
-        log.Printf("TTS request body: %s", string(jsonData))
 
         // Create HTTP request
         ttsReq, err := http.NewRequest("POST", ttsURL, bytes.NewBuffer(jsonData))
@@ -93,7 +135,6 @@ func APIConversationHandler(ts *whisper.TranscribeService) http.HandlerFunc {
             http.Error(w, "Failed to create TTS request", http.StatusInternalServerError)
             return
         }
-
         ttsReq.Header.Set("Content-Type", "application/json")
 
         // Send request
@@ -110,8 +151,6 @@ func APIConversationHandler(ts *whisper.TranscribeService) http.HandlerFunc {
         if resp.StatusCode != http.StatusOK {
             body, _ := io.ReadAll(resp.Body)
             log.Printf("TTS server returned error: Status %d, Body: %s", resp.StatusCode, string(body))
-            
-            // Check if it's a JSON error response
             if strings.Contains(resp.Header.Get("Content-Type"), "application/json") {
                 var errorResponse map[string]interface{}
                 if json.Unmarshal(body, &errorResponse) == nil {
@@ -121,7 +160,6 @@ func APIConversationHandler(ts *whisper.TranscribeService) http.HandlerFunc {
                     }
                 }
             }
-            
             http.Error(w, "TTS server error", http.StatusInternalServerError)
             return
         }
@@ -142,22 +180,20 @@ func APIConversationHandler(ts *whisper.TranscribeService) http.HandlerFunc {
             return
         }
 
-        // Check if the audio data is valid (MP3 files typically start with ID3 tag or FF FB)
-        if len(audioBytes) < 2 || (audioBytes[0] != 0xFF && audioBytes[0] != 'I') {
-            log.Printf("Invalid audio data received from TTS server")
-            http.Error(w, "Invalid audio data received from TTS server", http.StatusInternalServerError)
-            return
-        }
-
         // Encode audio to base64 for JSON response
         audioBase64 := base64.StdEncoding.EncodeToString(audioBytes)
 
+        // Update history with new turns
+        history = append(history, ConversationTurn{Role: "user", Content: result.Text})
+        history = append(history, ConversationTurn{Role: "assistant", Content: llmResponse})
+
         w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(map[string]string{
+        json.NewEncoder(w).Encode(map[string]interface{}{
             "status":           "success",
             "transcribed_text": result.Text,
             "llm_response":     llmResponse,
             "audio_base64":     audioBase64,
+            "history":          history,
         })
     }
 }
