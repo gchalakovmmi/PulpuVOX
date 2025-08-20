@@ -29,12 +29,77 @@ services:
   #   env_file:
   #     - ./vars.env
   #   networks:
-  #     - ntg_net
+  #     - pulpuvox_net
   #   ports:
   #     - "9000:9000"
   #     - "9001:9001"
   #   volumes:
   #     - objectstorage_data:/data
+
+  # whisper:
+  #   image: onerahmet/openai-whisper-asr-webservice:latest-gpu
+  #   restart: unless-stopped
+  #   container_name: whisper
+  #   ports:
+  #     - "9000:9000"
+  #   networks:
+  #     - pulpuvox_net
+  #   runtime: nvidia  # Requires nvidia-container-runtime
+  #   environment:
+  #     - ASR_MODEL=base.en
+  #     - NVIDIA_VISIBLE_DEVICES=all
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: all
+  #             capabilities: [gpu]
+
+
+  # kitten-tts-server:    
+  #   build:    
+  #     args:    
+  #     # Can be nvidia or cpu; Default is Nvidia    
+  #       - RUNTIME=nvidia    
+  #     context: .    
+  #     dockerfile: Dockerfile    
+  #   ports:    
+  #     - "${PORT:-8005}:8005"    
+  #   volumes:    
+  #     # Mount local config file for persistence    
+  #     - ./config.yaml:/app/config.yaml    
+  #     # Mount local directories for persistent app data    
+  #     - ./outputs:/app/outputs    
+  #     - ./logs:/app/logs    
+  #     # Named volume for Hugging Face model cache to persist across container rebuilds    
+  #     - hf_cache:/app/hf_cache    
+  #
+  #   # --- GPU Support (NVIDIA) ---    
+  #   # The 'deploy' key is the modern way to request GPU resources.    
+  #   # If you get a 'CDI device injection failed' error, comment out the 'deploy' section    
+  #   # and uncomment the 'runtime: nvidia' line below.    
+  #
+  #   # Method 1: Modern Docker Compose (Recommended)    
+  #   deploy:    
+  #     resources:    
+  #       reservations:    
+  #         devices:    
+  #           - driver: nvidia    
+  #             count: 1    
+  #             capabilities: [gpu]    
+  #
+  #   # Method 2: Legacy Docker Compose (for older setups)    
+  #   # runtime: nvidia    
+  #
+  #   restart: unless-stopped    
+  #   environment:    
+  #     # Enable faster Hugging Face downloads inside the container    
+  #     - HF_HUB_ENABLE_HF_TRANSFER=1    
+  #     # Make NVIDIA GPUs visible and specify capabilities for PyTorch    
+  #     - NVIDIA_VISIBLE_DEVICES=all    
+  #     - NVIDIA_DRIVER_CAPABILITIES=compute,utility    
+
 
 volumes:
   database_data:
