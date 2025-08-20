@@ -9,6 +9,7 @@ import (
 	"PulpuVOX/pages/landing"
 	"github.com/a-h/templ"
 	"github.com/gchalakovmmi/PulpuWEB/db"
+	"github.com/gchalakovmmi/PulpuWEB/whisper"
 
 	"github.com/gchalakovmmi/PulpuWEB/auth"
 	"github.com/jackc/pgx/v5"
@@ -30,7 +31,10 @@ func main() {
 	googleAuth := auth.NewGoogleAuth(authConfig)
 
 	// Initialize transcription service
-	transcribeService := handlers.NewTranscribeService("http://192.168.0.27:9000/asr")
+	transcribeService, err := whisper.NewTranscribeService()
+	if err != nil {
+		log.Fatalf("Failed to initialize transcription service: %v", err)
+	}
 
 	// Handle routes
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
@@ -79,7 +83,7 @@ func main() {
 			}),
 		),
 	)
-	http.HandleFunc("/api/transcribe", transcribeService.TranscribeHandler)
+	http.HandleFunc("/api/transcribe", handlers.TranscribeHandler(transcribeService))
 
 	port := os.Getenv("BACKEND_PORT")
 	fmt.Printf("Serving on port %s ...\n", port)

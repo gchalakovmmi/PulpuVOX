@@ -6,8 +6,6 @@ tool github.com/a-h/templ/cmd/templ
 
 require (
 	github.com/a-h/templ v0.3.924
-	github.com/gchalakovmmi/PulpuWEB/auth v0.0.0-20250819200156-a09c0a7c1305
-	github.com/gchalakovmmi/PulpuWEB/db v0.0.0-20250819200156-a09c0a7c1305
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/markbates/goth v1.82.0
 )
@@ -20,6 +18,9 @@ require (
 	github.com/cli/browser v1.3.0 // indirect
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
+	github.com/gchalakovmmi/PulpuWEB/auth v0.0.0-20250820024701-28c086fb5422 // indirect
+	github.com/gchalakovmmi/PulpuWEB/db v0.0.0-20250820024701-28c086fb5422 // indirect
+	github.com/gchalakovmmi/PulpuWEB/whisper v0.0.0-20250820024701-28c086fb5422 // indirect
 	github.com/go-chi/chi/v5 v5.2.2 // indirect
 	github.com/gorilla/context v1.1.1 // indirect
 	github.com/gorilla/mux v1.6.2 // indirect

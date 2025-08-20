@@ -19,8 +19,14 @@ github.com/fsnotify/fsnotify v1.7.0 h1:8JEhPFa5W2WU7YfeZzPNqzMP6Lwt7L2715Ggo0nos
 github.com/fsnotify/fsnotify v1.7.0/go.mod h1:40Bi/Hjc2AVfZrqy+aj+yEI+/bRxZnMJyTJwOpGvigM=
 github.com/gchalakovmmi/PulpuWEB/auth v0.0.0-20250819200156-a09c0a7c1305 h1:roI/9NnBClYmoTKDynxQapCU6ojScECbUcfCjr8bYqQ=
 github.com/gchalakovmmi/PulpuWEB/auth v0.0.0-20250819200156-a09c0a7c1305/go.mod h1:6Wg/29Sp4otmwzISYcDYcH4Koy1weIzibKSzNA21a2c=
+github.com/gchalakovmmi/PulpuWEB/auth v0.0.0-20250820024701-28c086fb5422 h1:T+6is2/N7GGaYvMqny5YI5GOA/P5uA80dMwxGe0hdQc=
+github.com/gchalakovmmi/PulpuWEB/auth v0.0.0-20250820024701-28c086fb5422/go.mod h1:6Wg/29Sp4otmwzISYcDYcH4Koy1weIzibKSzNA21a2c=
 github.com/gchalakovmmi/PulpuWEB/db v0.0.0-20250819200156-a09c0a7c1305 h1:0d13ObJRjdlpCpUo920b2bbKPAXht8CMBYSkvLGizaE=
 github.com/gchalakovmmi/PulpuWEB/db v0.0.0-20250819200156-a09c0a7c1305/go.mod h1:OkcKYeTILsKt/CedowhcJKI953Y7LT9A7nMrG5uoupM=
+github.com/gchalakovmmi/PulpuWEB/db v0.0.0-20250820024701-28c086fb5422 h1:N7xIcxZ+g2l1CPjE3uIhzReXgtMWsQUXnDRFHx0nMHE=
+github.com/gchalakovmmi/PulpuWEB/db v0.0.0-20250820024701-28c086fb5422/go.mod h1:OkcKYeTILsKt/CedowhcJKI953Y7LT9A7nMrG5uoupM=
+github.com/gchalakovmmi/PulpuWEB/whisper v0.0.0-20250820024701-28c086fb5422 h1:W3X9MbkHgNsyMq6rF2K9PTzzRAfPR643Cdd4gj6Jb2E=
+github.com/gchalakovmmi/PulpuWEB/whisper v0.0.0-20250820024701-28c086fb5422/go.mod h1:dfc5lUXlKkDoiymLbspIPr0VQABcnxIc7NAd2O9dEyo=
 github.com/go-chi/chi/v5 v5.2.2 h1:CMwsvRVTbXVytCk1Wd72Zy1LAsAh9GxMmSNWLHCG618=
 github.com/go-chi/chi/v5 v5.2.2/go.mod h1:L2yAIGWB3H+phAw1NxKwWM+7eUH/lU8pOMm5hHcoops=
 github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
