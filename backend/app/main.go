@@ -29,6 +29,9 @@ func main() {
 
 	googleAuth := auth.NewGoogleAuth(authConfig)
 
+	// Initialize transcription service
+	transcribeService := handlers.NewTranscribeService("http://192.168.0.27:9000/asr")
+
 	// Handle routes
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "static/logo/favicon.ico")
@@ -36,7 +39,6 @@ func main() {
 	http.HandleFunc("/", googleAuth.WithOutGoogleAuth("/home", func(w http.ResponseWriter, r *http.Request) {
 		templ.Handler(landing.Landing()).ServeHTTP(w, r)
 	}))
-	// Authentication routes
 	http.HandleFunc("/auth/google", func(w http.ResponseWriter, r *http.Request) {
 		if _, err := googleAuth.GetSession(r); err == nil {
 			http.Redirect(w, r, "/home", http.StatusSeeOther)
@@ -44,7 +46,6 @@ func main() {
 		}
 		googleAuth.BeginAuthHandler(w, r)
 	})
-
 	http.HandleFunc("/auth/google/callback", func(w http.ResponseWriter, r *http.Request) {
 		user, err := googleAuth.CompleteUserAuth(w, r)
 		if err != nil {
@@ -59,13 +60,11 @@ func main() {
 
 		http.Redirect(w, r, "/home", http.StatusSeeOther)
 	})
-
 	http.HandleFunc("/logout/google", func(w http.ResponseWriter, r *http.Request) {
 		googleAuth.LogoutHandler(w, r)
 		googleAuth.ClearSession(w)
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 	})
-
 	http.HandleFunc("/home", 
 		googleAuth.WithGoogleAuth(
 			db.WithDB(dbConnectionDetails, func(w http.ResponseWriter, r *http.Request, conn *pgx.Conn) {
@@ -73,7 +72,6 @@ func main() {
 			}),
 		),
 	)
-
 	http.HandleFunc("/conversation", 
 		googleAuth.WithGoogleAuth(
 			db.WithDB(dbConnectionDetails, func(w http.ResponseWriter, r *http.Request, conn *pgx.Conn) {
@@ -81,6 +79,7 @@ func main() {
 			}),
 		),
 	)
+	http.HandleFunc("/api/transcribe", transcribeService.TranscribeHandler)
 
 	port := os.Getenv("BACKEND_PORT")
 	fmt.Printf("Serving on port %s ...\n", port)

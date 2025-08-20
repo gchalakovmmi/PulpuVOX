@@ -8,7 +8,6 @@ import (
 	"github.com/gchalakovmmi/PulpuWEB/auth"
 	"log"
 	"github.com/a-h/templ"
-	"PulpuVOX/pages/conversation"
 )
 
 
@@ -32,15 +31,4 @@ func HomeHandler(w http.ResponseWriter, r *http.Request, conn *pgx.Conn, googleA
 		
 		// Render protected content using templ
 		templ.Handler(home.Home(&user)).ServeHTTP(w, r)
-}
-
-func ConversationHandler(w http.ResponseWriter, r *http.Request, conn *pgx.Conn, googleAuth *auth.GoogleAuth) {
-		session, err := googleAuth.GetSession(r)
-		if err != nil {
-				http.Redirect(w, r, "/auth/google", http.StatusTemporaryRedirect)
-				return
-		}
-		user := session.User
-		
-		templ.Handler(conversation.Conversation(&user)).ServeHTTP(w, r)
 }
