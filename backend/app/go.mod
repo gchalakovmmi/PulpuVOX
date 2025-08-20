@@ -5,13 +5,13 @@ go 1.24.4
 tool github.com/a-h/templ/cmd/templ
 
 require (
-	github.com/a-h/templ v0.3.924
+	github.com/a-h/templ v0.3.943
 	github.com/gchalakovmmi/PulpuWEB/auth v0.0.0-20250820231528-f2af04fc75f6
 	github.com/gchalakovmmi/PulpuWEB/db v0.0.0-20250820231528-f2af04fc75f6
 	github.com/gchalakovmmi/PulpuWEB/whisper v0.0.0-20250820231528-f2af04fc75f6
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/markbates/goth v1.82.0
-	github.com/openai/openai-go/v2 v2.1.0
+	github.com/openai/openai-go/v2 v2.1.1
 )
 
 require (
@@ -22,6 +22,7 @@ require (
 	github.com/cli/browser v1.3.0 // indirect
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
+	github.com/gchalakovmmi/PulpuWEB v1.0.8 // indirect
 	github.com/go-chi/chi/v5 v5.2.2 // indirect
 	github.com/gorilla/context v1.1.1 // indirect
 	github.com/gorilla/mux v1.6.2 // indirect
@@ -36,12 +37,12 @@ require (
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
-	golang.org/x/crypto v0.41.0 // indirect
+	golang.org/x/crypto v0.40.0 // indirect
 	golang.org/x/mod v0.26.0 // indirect
 	golang.org/x/net v0.42.0 // indirect
 	golang.org/x/oauth2 v0.27.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
-	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/sys v0.34.0 // indirect
+	golang.org/x/text v0.27.0 // indirect
 	golang.org/x/tools v0.35.0 // indirect
 )
