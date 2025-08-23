@@ -101,14 +101,8 @@ templ Scripts() {
 
         // Function to start recording automatically
         function startRecordingAutomatically() {
-            if (isFirstTurn) {
-                // For first turn, play hello sound first
-                startButton.click();
-                isFirstTurn = false;
-            } else {
-                // For subsequent turns, start recording immediately
-                startRecordingProcess();
-            }
+            // For subsequent turns, start recording immediately
+            startRecordingProcess();
         }
 
         // Function to handle the recording process
@@ -190,6 +184,17 @@ templ Scripts() {
             try {
                 startButton.disabled = true;
                 statusText.innerHTML = '<span class="indicator"></span> Playing hello sound...';
+
+                // If it's the first turn, add the hello message immediately
+                if (isFirstTurn) {
+                    const helloMessage = {
+                        role: 'assistant',
+                        content: "Hello! What would you like to talk about today?"
+                    };
+                    conversationHistory.push(helloMessage);
+                    updateMessageDisplay();
+                    isFirstTurn = false;
+                }
 
                 // Play the hello sound
                 const helloSound = new Audio(helloSoundUrl);
