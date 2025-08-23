@@ -5,68 +5,6 @@ import ()
 templ Scripts() {
     <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.0/lame.min.js"></script>
     <script>
-        // Function to expand common contractions
-        function expandContractions(text) {
-            const contractions = {
-                "i'm": "i am",
-                "you're": "you are",
-                "he's": "he is",
-                "she's": "she is",
-                "it's": "it is",
-                "we're": "we are",
-                "they're": "they are",
-                "that's": "that is",
-                "who's": "who is",
-                "what's": "what is",
-                "where's": "where is",
-                "when's": "when is",
-                "why's": "why is",
-                "how's": "how is",
-                "isn't": "is not",
-                "aren't": "are not",
-                "wasn't": "was not",
-                "weren't": "were not",
-                "haven't": "have not",
-                "hasn't": "has not",
-                "hadn't": "had not",
-                "don't": "do not",
-                "doesn't": "does not",
-                "didn't": "did not",
-                "won't": "will not",
-                "wouldn't": "would not",
-                "can't": "cannot",
-                "couldn't": "could not",
-                "shouldn't": "should not",
-                "mightn't": "might not",
-                "mustn't": "must not",
-                "i'd": "i would",
-                "you'd": "you would",
-                "he'd": "he would",
-                "she'd": "she would",
-                "it'd": "it would",
-                "we'd": "we would",
-                "they'd": "they would",
-                "i'll": "i will",
-                "you'll": "you will",
-                "he'll": "he will",
-                "she'll": "she will",
-                "it'll": "it will",
-                "we'll": "we will",
-                "they'll": "they will",
-                "i've": "i have",
-                "you've": "you have",
-                "we've": "we have",
-                "they've": "they have"
-            };
-
-            let expandedText = text.toLowerCase();
-            for (const [contraction, expansion] of Object.entries(contractions)) {
-                const regex = new RegExp('\\b' + contraction + '\\b', 'gi');
-                expandedText = expandedText.replace(regex, expansion);
-            }
-            return expandedText;
-        }
-
         // Variables to manage recording state
         let mediaRecorder;
         let audioChunks = [];
@@ -74,6 +12,7 @@ templ Scripts() {
         let conversationHistory = [];
         let isFirstTurn = true;
         let isRecording = false;
+        let userName = "You"; // Default value
 
         // Get references to UI elements
         const startButton = document.getElementById('startButton');
@@ -95,7 +34,14 @@ templ Scripts() {
                 
                 const roleSpan = document.createElement('span');
                 roleSpan.className = 'message-role';
-                roleSpan.textContent = turn.role === 'user' ? 'You: ' : 'Voxy: ';
+                
+                if (turn.role === 'user') {
+                    roleSpan.textContent = (turn.user_name || userName) + ': ';
+                } else if (turn.role === 'assistant') {
+                    roleSpan.textContent = 'Voxy: ';
+                } else {
+                    roleSpan.textContent = turn.role + ': ';
+                }
                 
                 const contentSpan = document.createElement('span');
                 contentSpan.className = 'message-content';
@@ -106,19 +52,9 @@ templ Scripts() {
                 
                 // Add suggestion if available
                 if (turn.suggestion !== undefined) {
-                    // Expand contractions and normalize for comparison
-                    const expandedSuggestion = expandContractions(turn.suggestion);
-                    const expandedContent = expandContractions(turn.content);
-                    
-                    const normalizedSuggestion = expandedSuggestion
-                        .replace(/[\u2018\u2019]/g, "'")
-                        .replace(/[.,!?;]$/, '')
-                        .trim();
-                    
-                    const normalizedContent = expandedContent
-                        .replace(/[\u2018\u2019]/g, "'")
-                        .replace(/[.,!?;]$/, '')
-                        .trim();
+                    // Normalize for comparison
+                    const normalizedSuggestion = normalizeTextForComparison(turn.suggestion);
+                    const normalizedContent = normalizeTextForComparison(turn.content);
                     
                     if (normalizedSuggestion === normalizedContent || normalizedSuggestion === '') {
                         // Show positive feedback for correct sentences
@@ -379,6 +315,11 @@ templ Scripts() {
                 
                 // Update the conversation history with the real data
                 conversationHistory = data.history;
+                
+                // Update the user name if provided
+                if (data.user_name) {
+                    userName = data.user_name;
+                }
                 
                 // Update the message display
                 updateMessageDisplay();

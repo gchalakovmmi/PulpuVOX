@@ -15,6 +15,7 @@ import (
     "github.com/openai/openai-go/v2"
     "github.com/openai/openai-go/v2/option"
     "github.com/jackc/pgx/v5"
+    "github.com/gchalakovmmi/PulpuWEB/auth"
 )
 
 // ConversationTurn represents a single turn in the conversation
@@ -22,6 +23,7 @@ type ConversationTurn struct {
     Role       string `json:"role"`
     Content    string `json:"content"`
     Suggestion string `json:"suggestion,omitempty"`
+    UserName   string `json:"user_name,omitempty"`
 }
 
 // filterText removes emojis and markdown from text
@@ -112,6 +114,30 @@ func generateSuggestion(ctx context.Context, llmClient openai.Client, history []
 
 func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWriter, *http.Request, *pgx.Conn) {
     return func(w http.ResponseWriter, r *http.Request, conn *pgx.Conn) {
+        // Get user ID and name from session
+        authConfig, err := auth.GetGoogleAuthConfig()
+        if err != nil {
+            log.Printf("Error getting Google auth config: %v", err)
+            http.Error(w, "Authentication error", http.StatusInternalServerError)
+            return
+        }
+        googleAuth := auth.NewGoogleAuth(authConfig)
+        
+        userID, err := getUserIdFromSession(r, conn, googleAuth)
+        if err != nil {
+            log.Printf("Error getting user from session: %v", err)
+            http.Error(w, "User not found", http.StatusNotFound)
+            return
+        }
+
+        // Get user name from database
+        var userName string
+        err = conn.QueryRow(context.Background(), "SELECT name FROM users WHERE id = $1", userID).Scan(&userName)
+        if err != nil {
+            log.Printf("Error getting user name: %v", err)
+            userName = "You" // Fallback
+        }
+
         // Parse the multipart form
         if err := r.ParseMultipartForm(10 << 20); err != nil { // 10 MB
             http.Error(w, "Unable to parse form", http.StatusBadRequest)
@@ -260,8 +286,12 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
                 Role:       "user",
                 Content:    result.Text,
                 Suggestion: suggestion,
+                UserName:   userName,
             })
-            history = append(history, ConversationTurn{Role: "assistant", Content: limitedResponse})
+            history = append(history, ConversationTurn{
+                Role:    "assistant",
+                Content: limitedResponse,
+            })
 
             w.Header().Set("Content-Type", "application/json")
             json.NewEncoder(w).Encode(map[string]interface{}{
@@ -271,6 +301,7 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
                 "audio_base64":     "",
                 "history":          history,
                 "suggestion":       suggestion,
+                "user_name":        userName,
                 "error":            "TTS service unavailable, text response only",
             })
             return
@@ -300,8 +331,12 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
             Role:       "user",
             Content:    result.Text,
             Suggestion: suggestion,
+            UserName:   userName,
         })
-        history = append(history, ConversationTurn{Role: "assistant", Content: limitedResponse})
+        history = append(history, ConversationTurn{
+            Role:    "assistant",
+            Content: limitedResponse,
+        })
 
         w.Header().Set("Content-Type", "application/json")
         json.NewEncoder(w).Encode(map[string]interface{}{
@@ -311,6 +346,7 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
             "audio_base64":     audioBase64,
             "history":          history,
             "suggestion":       suggestion,
+            "user_name":        userName,
         })
     }
 }
