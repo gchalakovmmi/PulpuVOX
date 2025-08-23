@@ -13,6 +13,7 @@ templ Scripts() {
         let isFirstTurn = true;
         let isRecording = false;
         let userName = "You"; // Default value
+        let recordingTimeout;
 
         // Get references to UI elements
         const startButton = document.getElementById('startButton');
@@ -51,7 +52,7 @@ templ Scripts() {
                 messageDiv.appendChild(contentSpan);
                 
                 // Add suggestion if available
-                if (turn.suggestion !== undefined) {
+                if (turn.suggestion !== undefined && turn.suggestion !== '') {
                     // Normalize for comparison
                     const normalizedSuggestion = normalizeTextForComparison(turn.suggestion);
                     const normalizedContent = normalizeTextForComparison(turn.content);
@@ -84,7 +85,20 @@ templ Scripts() {
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
-        // Rest of the script remains the same...
+        // Function to stop recording
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                // Update UI
+                endButton.disabled = true;
+                // Clear the timeout if recording is stopped manually
+                if (recordingTimeout) {
+                    clearTimeout(recordingTimeout);
+                    recordingTimeout = null;
+                }
+            }
+        }
+
         // Function to start recording automatically
         function startRecordingAutomatically() {
             if (isFirstTurn) {
@@ -150,11 +164,24 @@ templ Scripts() {
                 // Update UI
                 endButton.disabled = false;
                 
+                // Set a timeout to automatically stop recording after 30 seconds
+                recordingTimeout = setTimeout(() => {
+                    if (isRecording) {
+                        statusText.innerHTML = '<span class="indicator"></span> Time limit reached, processing...';
+                        stopRecording();
+                    }
+                }, 30000); // 30 seconds
+                
             } catch (error) {
                 console.error("Error:", error);
                 statusText.textContent = "Error: " + error.message;
                 startButton.disabled = false;
                 isRecording = false;
+                // Clear the timeout if there was an error
+                if (recordingTimeout) {
+                    clearTimeout(recordingTimeout);
+                    recordingTimeout = null;
+                }
             }
         }
 
@@ -188,11 +215,7 @@ templ Scripts() {
 
         // Event handler for the end button
         endButton.addEventListener('click', () => {
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
-                // Update UI
-                endButton.disabled = true;
-            }
+            stopRecording();
         });
 
         // Event handler for the end conversation button

@@ -112,6 +112,13 @@ func main() {
         }),
     ),
 	)
+	http.HandleFunc("/api/conversation/start",
+    googleAuth.WithGoogleAuth(
+        db.WithDB(dbConnectionDetails, func(w http.ResponseWriter, r *http.Request, conn *pgx.Conn) {
+            handlers.APIStartConversationHandler(w, r, conn)
+        }),
+    ),
+	)
 
 	port := os.Getenv("BACKEND_PORT")
 	fmt.Printf("Serving on port %s ...\n", port)
