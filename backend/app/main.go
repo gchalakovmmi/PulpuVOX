@@ -119,6 +119,13 @@ func main() {
         }),
     ),
 	)
+	http.HandleFunc("/api/feedback/generate",
+    googleAuth.WithGoogleAuth(
+        db.WithDB(dbConnectionDetails, func(w http.ResponseWriter, r *http.Request, conn *pgx.Conn) {
+            handlers.GenerateFeedbackHandler(w, r, conn)
+        }),
+    ),
+	)
 
 	port := os.Getenv("BACKEND_PORT")
 	fmt.Printf("Serving on port %s ...\n", port)
