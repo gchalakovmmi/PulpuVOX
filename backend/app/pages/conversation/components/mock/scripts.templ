@@ -5,6 +5,68 @@ import ()
 templ Scripts() {
     <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.0/lame.min.js"></script>
     <script>
+        // Function to expand common contractions
+        function expandContractions(text) {
+            const contractions = {
+                "i'm": "i am",
+                "you're": "you are",
+                "he's": "he is",
+                "she's": "she is",
+                "it's": "it is",
+                "we're": "we are",
+                "they're": "they are",
+                "that's": "that is",
+                "who's": "who is",
+                "what's": "what is",
+                "where's": "where is",
+                "when's": "when is",
+                "why's": "why is",
+                "how's": "how is",
+                "isn't": "is not",
+                "aren't": "are not",
+                "wasn't": "was not",
+                "weren't": "were not",
+                "haven't": "have not",
+                "hasn't": "has not",
+                "hadn't": "had not",
+                "don't": "do not",
+                "doesn't": "does not",
+                "didn't": "did not",
+                "won't": "will not",
+                "wouldn't": "would not",
+                "can't": "cannot",
+                "couldn't": "could not",
+                "shouldn't": "should not",
+                "mightn't": "might not",
+                "mustn't": "must not",
+                "i'd": "i would",
+                "you'd": "you would",
+                "he'd": "he would",
+                "she'd": "she would",
+                "it'd": "it would",
+                "we'd": "we would",
+                "they'd": "they would",
+                "i'll": "i will",
+                "you'll": "you will",
+                "he'll": "he will",
+                "she'll": "she will",
+                "it'll": "it will",
+                "we'll": "we will",
+                "they'll": "they will",
+                "i've": "i have",
+                "you've": "you have",
+                "we've": "we have",
+                "they've": "they have"
+            };
+
+            let expandedText = text.toLowerCase();
+            for (const [contraction, expansion] of Object.entries(contractions)) {
+                const regex = new RegExp('\\b' + contraction + '\\b', 'gi');
+                expandedText = expandedText.replace(regex, expansion);
+            }
+            return expandedText;
+        }
+
         // Variables to manage recording state
         let mediaRecorder;
         let audioChunks = [];
@@ -41,6 +103,44 @@ templ Scripts() {
                 
                 messageDiv.appendChild(roleSpan);
                 messageDiv.appendChild(contentSpan);
+                
+                // Add suggestion if available
+                if (turn.suggestion !== undefined) {
+                    // Expand contractions and normalize for comparison
+                    const expandedSuggestion = expandContractions(turn.suggestion);
+                    const expandedContent = expandContractions(turn.content);
+                    
+                    const normalizedSuggestion = expandedSuggestion
+                        .replace(/[\u2018\u2019]/g, "'")
+                        .replace(/[.,!?;]$/, '')
+                        .trim();
+                    
+                    const normalizedContent = expandedContent
+                        .replace(/[\u2018\u2019]/g, "'")
+                        .replace(/[.,!?;]$/, '')
+                        .trim();
+                    
+                    if (normalizedSuggestion === normalizedContent || normalizedSuggestion === '') {
+                        // Show positive feedback for correct sentences
+                        const positiveDiv = document.createElement('div');
+                        positiveDiv.className = 'positive-feedback';
+                        positiveDiv.innerHTML = '✓ Good job! Your sentence is correct.';
+                        messageDiv.appendChild(positiveDiv);
+                    } else {
+                        // Show suggestion for incorrect sentences
+                        const suggestionDiv = document.createElement('div');
+                        suggestionDiv.className = 'suggestion';
+                        suggestionDiv.innerHTML = '<strong>Suggestion:</strong> ' + turn.suggestion;
+                        messageDiv.appendChild(suggestionDiv);
+                    }
+                } else if (turn.role === 'user' && turn.isProcessing) {
+                    // Show processing indicator for user messages that are still being processed
+                    const processingDiv = document.createElement('div');
+                    processingDiv.className = 'processing';
+                    processingDiv.innerHTML = 'Processing...';
+                    messageDiv.appendChild(processingDiv);
+                }
+                
                 messagesContainer.appendChild(messageDiv);
             });
             
@@ -48,6 +148,7 @@ templ Scripts() {
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
+        // Rest of the script remains the same...
         // Function to start recording automatically
         function startRecordingAutomatically() {
             if (isFirstTurn) {
@@ -162,6 +263,9 @@ templ Scripts() {
         endConversationButton.addEventListener('click', endConversation);
 
         function endConversation() {
+            // Save conversation to sessionStorage for the analysis page
+            sessionStorage.setItem('currentConversation', JSON.stringify(conversationHistory));
+            
             fetch('/api/conversation/end', {
                 method: 'POST',
                 headers: {
@@ -249,6 +353,14 @@ templ Scripts() {
             formData.append('audio', mp3Blob, 'recording.mp3');
             formData.append('history', JSON.stringify(conversationHistory));
 
+            // Add a temporary user message with "Processing..." indicator
+            conversationHistory.push({
+                role: 'user',
+                content: 'Processing...',
+                isProcessing: true
+            });
+            updateMessageDisplay();
+
             fetch('/api/conversation/turn', {
                 method: 'POST',
                 body: formData
@@ -262,11 +374,17 @@ templ Scripts() {
             .then(data => {
                 console.log('API response:', data);
                 
-                // Update the conversation history
+                // Remove the temporary processing message
+                conversationHistory.pop();
+                
+                // Update the conversation history with the real data
                 conversationHistory = data.history;
                 
                 // Update the message display
                 updateMessageDisplay();
+                
+                // Save conversation to sessionStorage for the analysis page
+                sessionStorage.setItem('currentConversation', JSON.stringify(conversationHistory));
                 
                 // Check if we have audio
                 if (data.audio_base64 && data.status !== "partial_success") {
@@ -308,6 +426,9 @@ templ Scripts() {
             })
             .catch(error => {
                 console.error('Error sending to server:', error);
+                // Remove the temporary processing message
+                conversationHistory.pop();
+                updateMessageDisplay();
                 statusText.textContent = "Error: " + error.message;
                 // Try to start recording again
                 setTimeout(() => {

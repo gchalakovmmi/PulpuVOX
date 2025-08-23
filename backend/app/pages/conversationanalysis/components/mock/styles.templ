@@ -4,7 +4,34 @@ import ()
 
 templ Styles() {
     <style>
-        .user-message { color: blue; }
-        .assistant-message { color: green; }
+        .user-message { 
+            color: blue; 
+            margin-bottom: 10px;
+            padding: 8px;
+            background-color: #e3f2fd;
+            border-radius: 5px;
+        }
+        .assistant-message { 
+            color: green; 
+            margin-bottom: 10px;
+            padding: 8px;
+            background-color: #f3e5f5;
+            border-radius: 5px;
+        }
+        .suggestion {
+            font-style: italic;
+            color: #666;
+            margin-top: 5px;
+            padding: 5px;
+            background-color: #f8f9fa;
+            border-left: 3px solid #007bff;
+        }
+        .positive-feedback {
+            color: #28a745;
+            margin-top: 5px;
+            padding: 5px;
+            background-color: #f8f9fa;
+            border-left: 3px solid #28a745;
+        }
     </style>
 }

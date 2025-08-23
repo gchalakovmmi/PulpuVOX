@@ -19,8 +19,9 @@ import (
 
 // ConversationTurn represents a single turn in the conversation
 type ConversationTurn struct {
-    Role    string `json:"role"`
-    Content string `json:"content"`
+    Role       string `json:"role"`
+    Content    string `json:"content"`
+    Suggestion string `json:"suggestion,omitempty"`
 }
 
 // filterText removes emojis and markdown from text
@@ -73,6 +74,40 @@ func limitResponseLength(text string, maxSentences int, maxChars int) string {
     }
     
     return text
+}
+
+func generateSuggestion(ctx context.Context, llmClient openai.Client, history []ConversationTurn, userText string) (string, error) {
+    // Build conversation context
+    var conversationContext strings.Builder
+    for _, turn := range history {
+        conversationContext.WriteString(turn.Role + ": " + turn.Content + "\n")
+    }
+    
+    messages := []openai.ChatCompletionMessageParamUnion{
+        openai.SystemMessage("You are given a conversation. Rewrite the last user response to make it correct according the English language rules.\nEnclose the rewritten and corrected sentence in a <suggestion></suggestion> tag.\nExample:\nuser: I am like eating apple.\nyou: <suggestion>I enjoy eating apples.</suggestion>\nIf the sentence is already correct return an empty <suggestion> tag.\nExample:\nuser: I enjoy eating apples.\nyou: <suggestion></suggestion>"),
+        openai.UserMessage("You are given a chat between a user and an assistant for context:\n" + 
+            conversationContext.String() + 
+            "\nSuggest a correction for the last user response:\nuser: " + userText),
+    }
+
+    chatCompletion, err := llmClient.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
+        Messages: messages,
+        Model:    openai.ChatModel(os.Getenv("OPENAI_MODEL")),
+    })
+    if err != nil {
+        return "", err
+    }
+
+    response := chatCompletion.Choices[0].Message.Content
+    // Parse the suggestion from the response
+    if strings.Contains(response, "<suggestion>") {
+        start := strings.Index(response, "<suggestion>") + len("<suggestion>")
+        end := strings.Index(response, "</suggestion>")
+        if end > start {
+            return response[start:end], nil
+        }
+    }
+    return "", nil
 }
 
 func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWriter, *http.Request, *pgx.Conn) {
@@ -130,6 +165,13 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
             option.WithBaseURL(os.Getenv("OPENAI_BASE_URL")),
             option.WithAPIKey(os.Getenv("OPENAI_KEY")),
         )
+
+        // Generate suggestion for the user's response
+        suggestion, err := generateSuggestion(context.TODO(), llmClient, history, result.Text)
+        if err != nil {
+            log.Printf("Suggestion generation failed: %v", err)
+            // Continue without suggestion
+        }
 
         // Build messages for LLM with history
         messages := []openai.ChatCompletionMessageParamUnion{
@@ -214,7 +256,11 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
             
             // Even if TTS fails, we can still return the text response
             // Update history with new turns (using limited response)
-            history = append(history, ConversationTurn{Role: "user", Content: result.Text})
+            history = append(history, ConversationTurn{
+                Role:       "user",
+                Content:    result.Text,
+                Suggestion: suggestion,
+            })
             history = append(history, ConversationTurn{Role: "assistant", Content: limitedResponse})
 
             w.Header().Set("Content-Type", "application/json")
@@ -224,6 +270,7 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
                 "llm_response":     limitedResponse,
                 "audio_base64":     "",
                 "history":          history,
+                "suggestion":       suggestion,
                 "error":            "TTS service unavailable, text response only",
             })
             return
@@ -249,7 +296,11 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
         audioBase64 := base64.StdEncoding.EncodeToString(audioBytes)
 
         // Update history with new turns (using limited response)
-        history = append(history, ConversationTurn{Role: "user", Content: result.Text})
+        history = append(history, ConversationTurn{
+            Role:       "user",
+            Content:    result.Text,
+            Suggestion: suggestion,
+        })
         history = append(history, ConversationTurn{Role: "assistant", Content: limitedResponse})
 
         w.Header().Set("Content-Type", "application/json")
@@ -259,6 +310,7 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
             "llm_response":     limitedResponse,
             "audio_base64":     audioBase64,
             "history":          history,
+            "suggestion":       suggestion,
         })
     }
 }

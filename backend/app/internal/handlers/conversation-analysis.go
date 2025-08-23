@@ -1,13 +1,13 @@
 package handlers
 
 import (
-	"PulpuVOX/pages/conversationanalysis"
-	"github.com/a-h/templ"
-	"net/http"
-	"github.com/jackc/pgx/v5"
-	"context"
-	"log"
-	"github.com/gchalakovmmi/PulpuWEB/auth"
+		"github.com/a-h/templ"
+    "PulpuVOX/pages/conversationanalysis"
+    "net/http"
+    "github.com/jackc/pgx/v5"
+    "context"
+    "log"
+    "github.com/gchalakovmmi/PulpuWEB/auth"
 )
 
 func GetLatestConversationHandler(w http.ResponseWriter, r *http.Request, conn *pgx.Conn, googleAuth *auth.GoogleAuth) {
