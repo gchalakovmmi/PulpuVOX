@@ -18,9 +18,35 @@ templ Scripts() {
         const endButton = document.getElementById('endButton');
         const endConversationButton = document.getElementById('endConversationButton');
         const statusText = document.getElementById('status');
+        const messagesContainer = document.getElementById('messages-container');
 
         // Hello sound URL
         const helloSoundUrl = "/static/audio/hello.mp3";
+
+        // Function to update the message display
+        function updateMessageDisplay() {
+            messagesContainer.innerHTML = '';
+            
+            conversationHistory.forEach(turn => {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = turn.role === 'user' ? 'message user-message' : 'message assistant-message';
+                
+                const roleSpan = document.createElement('span');
+                roleSpan.className = 'message-role';
+                roleSpan.textContent = turn.role === 'user' ? 'You: ' : 'Voxy: ';
+                
+                const contentSpan = document.createElement('span');
+                contentSpan.className = 'message-content';
+                contentSpan.textContent = turn.content;
+                
+                messageDiv.appendChild(roleSpan);
+                messageDiv.appendChild(contentSpan);
+                messagesContainer.appendChild(messageDiv);
+            });
+            
+            // Scroll to bottom to show latest message
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
 
         // Function to start recording automatically
         function startRecordingAutomatically() {
@@ -218,71 +244,79 @@ templ Scripts() {
         }
 
         // Function to send MP3 to server
-				function sendToServer(mp3Blob) {
-						const formData = new FormData();
-						formData.append('audio', mp3Blob, 'recording.mp3');
-						formData.append('history', JSON.stringify(conversationHistory));
+        function sendToServer(mp3Blob) {
+            const formData = new FormData();
+            formData.append('audio', mp3Blob, 'recording.mp3');
+            formData.append('history', JSON.stringify(conversationHistory));
 
-						fetch('/api/conversation/turn', {
-								method: 'POST',
-								body: formData
-						})
-						.then(response => {
-								if (!response.ok) {
-										throw new Error('Server returned an error: ' + response.status);
-								}
-								return response.json();
-						})
-						.then(data => {
-								console.log('API response:', data);
-								// Update the conversation history
-								conversationHistory = data.history;
-								
-								// Play the audio if available
-								if (data.audio_base64) {
-										const audio = new Audio("data:audio/mp3;base64," + data.audio_base64);
-										audio.onended = function() {
-												statusText.textContent = "Ready for next turn";
-												// Reset for next recording
-												audioChunks = [];
-												// Automatically start recording for the next turn
-												setTimeout(() => {
-														startRecordingProcess();
-												}, 500); // Small delay before starting next recording
-										};
-										audio.onerror = function(e) {
-												console.error("Audio playback failed:", e);
-												statusText.textContent = "Audio playback failed";
-												// Still try to start recording
-												setTimeout(() => {
-														startRecordingProcess();
-												}, 500);
-										};
-										audio.play().catch(e => {
-												console.error("Audio play error:", e);
-												statusText.textContent = "Error playing audio: " + e.message;
-												// Still try to start recording
-												setTimeout(() => {
-														startRecordingProcess();
-												}, 500);
-										});
-										statusText.innerHTML = '<span class="indicator"></span> Playing response...';
-								} else {
-										statusText.textContent = "Ready for next turn (No audio response)";
-										// Automatically start recording for the next turn
-										setTimeout(() => {
-												startRecordingProcess();
-										}, 500);
-								}
-						})
-						.catch(error => {
-								console.error('Error sending to server:', error);
-								statusText.textContent = "Error: " + error.message;
-								// Try to start recording again
-								setTimeout(() => {
-										startRecordingProcess();
-								}, 500);
-						});
-				}
+            fetch('/api/conversation/turn', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Server returned an error: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('API response:', data);
+                
+                // Update the conversation history
+                conversationHistory = data.history;
+                
+                // Update the message display
+                updateMessageDisplay();
+                
+                // Check if we have audio
+                if (data.audio_base64 && data.status !== "partial_success") {
+                    const audio = new Audio("data:audio/mp3;base64," + data.audio_base64);
+                    audio.onended = function() {
+                        statusText.textContent = "Ready for next turn";
+                        // Reset for next recording
+                        audioChunks = [];
+                        // Automatically start recording for the next turn
+                        setTimeout(() => {
+                            startRecordingProcess();
+                        }, 500);
+                    };
+                    audio.onerror = function(e) {
+                        console.error("Audio playback failed:", e);
+                        statusText.textContent = "Response received (audio failed)";
+                        // Still continue with the conversation
+                        setTimeout(() => {
+                            startRecordingProcess();
+                        }, 500);
+                    };
+                    audio.play().catch(e => {
+                        console.error("Audio play error:", e);
+                        statusText.textContent = "Response received (audio failed)";
+                        // Still continue with the conversation
+                        setTimeout(() => {
+                            startRecordingProcess();
+                        }, 500);
+                    });
+                    statusText.innerHTML = '<span class="indicator"></span> Playing response...';
+                } else {
+                    // No audio available, but we can still continue
+                    statusText.textContent = "Response received (no audio)";
+                    // Automatically start recording for the next turn
+                    setTimeout(() => {
+                        startRecordingProcess();
+                    }, 500);
+                }
+            })
+            .catch(error => {
+                console.error('Error sending to server:', error);
+                statusText.textContent = "Error: " + error.message;
+                // Try to start recording again
+                setTimeout(() => {
+                    startRecordingProcess();
+                }, 500);
+            });
+        }
+
+        // Initialize message display
+        updateMessageDisplay();
     </script>
 }

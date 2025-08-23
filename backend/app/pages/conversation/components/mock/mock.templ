@@ -7,9 +7,12 @@ import (
 templ Mock(user *goth.User) {
     <div class="container">
         <div class="header">
-            <h1>Audio Recorder</h1>
+            <h1>Conversation with Voxy</h1>
         </div>
         <div class="content">
+            <div class="messages-container" id="messages-container">
+                <!-- Messages will be displayed here -->
+            </div>
             <div class="status" id="status">Ready to start</div>
             <div class="buttons">
                 <button id="startButton">Start</button>

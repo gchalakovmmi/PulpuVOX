@@ -48,6 +48,33 @@ func filterText(text string) string {
     return filtered
 }
 
+// limitResponseLength limits the response to a maximum number of sentences and characters
+func limitResponseLength(text string, maxSentences int, maxChars int) string {
+    // Split into sentences (simple approach)
+    sentences := strings.Split(text, ".")
+    
+    // Limit to max sentences
+    if len(sentences) > maxSentences {
+        text = strings.Join(sentences[:maxSentences], ".") + "."
+    }
+    
+    // Limit to max characters
+    if len(text) > maxChars {
+        text = text[:maxChars]
+        
+        // Try to end at a sentence boundary
+        if lastDot := strings.LastIndex(text, "."); lastDot != -1 {
+            text = text[:lastDot+1]
+        } else if lastSpace := strings.LastIndex(text, " "); lastSpace != -1 {
+            text = text[:lastSpace] + "..."
+        } else {
+            text = text + "..."
+        }
+    }
+    
+    return text
+}
+
 func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWriter, *http.Request, *pgx.Conn) {
     return func(w http.ResponseWriter, r *http.Request, conn *pgx.Conn) {
         // Parse the multipart form
@@ -71,7 +98,7 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
             history = []ConversationTurn{
                 {
                     Role:    "assistant",
-                    Content: "Hello! What would you like to talk about today?",
+                    Content: "Hello! I'm Voxy, your English teacher. What would you like to talk about today?",
                 },
             }
         }
@@ -106,7 +133,7 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
 
         // Build messages for LLM with history
         messages := []openai.ChatCompletionMessageParamUnion{
-            openai.SystemMessage("You are a helpful language learning assistant. Keep responses concise and engaging. Do not use any emojis, markdown formatting, special symbols, or URLs in your responses. Use plain text only."),
+            openai.SystemMessage("You are a young lady named Voxy who chatts with a new English learner. Be nice and have a pleasant conversation. Ask questions to the user, express opinion and tell interesting facts to keep the conversation going and talk about yourself sometimes. When the conversation becomes stale try changing the topic. Keep responses very short - maximum 1-2 sentences."),
         }
         
         // Add conversation history
@@ -138,15 +165,18 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
 
         // Filter out emojis and markdown
         filteredResponse := filterText(llmResponse)
-        log.Printf("Filtered response: %s", filteredResponse)
+
+        // Limit response length (max 2 sentences, 150 characters)
+        limitedResponse := limitResponseLength(filteredResponse, 2, 150)
+        log.Printf("Limited response: %s", limitedResponse)
 
         // Initialize HTTP client for TTS (KittenTTS)
         ttsURL := os.Getenv("OPENAI_TTS_URL") + "/v1/audio/speech"
 
-        // Create TTS request with filtered response
+        // Create TTS request with limited response
         ttsRequest := map[string]interface{}{
             "model":           "kitten-tts",
-            "input":           filteredResponse,
+            "input":           limitedResponse,
             "voice":           "expr-voice-4-f",
             "response_format": "mp3",
             "speed":           0.9,
@@ -181,16 +211,21 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
         if resp.StatusCode != http.StatusOK {
             body, _ := io.ReadAll(resp.Body)
             log.Printf("TTS server returned error: Status %d, Body: %s", resp.StatusCode, string(body))
-            if strings.Contains(resp.Header.Get("Content-Type"), "application/json") {
-                var errorResponse map[string]interface{}
-                if json.Unmarshal(body, &errorResponse) == nil {
-                    if detail, ok := errorResponse["detail"].(string); ok {
-                        http.Error(w, "TTS server error: "+detail, http.StatusInternalServerError)
-                        return
-                    }
-                }
-            }
-            http.Error(w, "TTS server error", http.StatusInternalServerError)
+            
+            // Even if TTS fails, we can still return the text response
+            // Update history with new turns (using limited response)
+            history = append(history, ConversationTurn{Role: "user", Content: result.Text})
+            history = append(history, ConversationTurn{Role: "assistant", Content: limitedResponse})
+
+            w.Header().Set("Content-Type", "application/json")
+            json.NewEncoder(w).Encode(map[string]interface{}{
+                "status":           "partial_success",
+                "transcribed_text": result.Text,
+                "llm_response":     limitedResponse,
+                "audio_base64":     "",
+                "history":          history,
+                "error":            "TTS service unavailable, text response only",
+            })
             return
         }
 
@@ -213,15 +248,15 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
         // Encode audio to base64 for JSON response
         audioBase64 := base64.StdEncoding.EncodeToString(audioBytes)
 
-        // Update history with new turns (using filtered response)
+        // Update history with new turns (using limited response)
         history = append(history, ConversationTurn{Role: "user", Content: result.Text})
-        history = append(history, ConversationTurn{Role: "assistant", Content: filteredResponse})
+        history = append(history, ConversationTurn{Role: "assistant", Content: limitedResponse})
 
         w.Header().Set("Content-Type", "application/json")
         json.NewEncoder(w).Encode(map[string]interface{}{
             "status":           "success",
             "transcribed_text": result.Text,
-            "llm_response":     filteredResponse,
+            "llm_response":     limitedResponse,
             "audio_base64":     audioBase64,
             "history":          history,
         })

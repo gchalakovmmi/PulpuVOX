@@ -3,5 +3,70 @@ package mock
 import ()
 
 templ Styles() {
-
+    <style>
+        .messages-container {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 15px;
+            background-color: #f9f9f9;
+        }
+        
+        .message {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 5px;
+        }
+        
+        .user-message {
+            background-color: #e3f2fd;
+            text-align: right;
+        }
+        
+        .assistant-message {
+            background-color: #f3e5f5;
+            text-align: left;
+        }
+        
+        .message-role {
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        
+        .message-content {
+            word-wrap: break-word;
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .status {
+            margin: 10px 0;
+            font-style: italic;
+        }
+        
+        .indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #4caf50;
+            margin-right: 5px;
+        }
+        
+        .indicator.pulse {
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
 }
