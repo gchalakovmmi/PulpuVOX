@@ -21,6 +21,8 @@ github.com/gchalakovmmi/PulpuWEB/auth v0.0.0-20250824203631-c55f158eb25a h1:g/xV
 github.com/gchalakovmmi/PulpuWEB/auth v0.0.0-20250824203631-c55f158eb25a/go.mod h1:6Wg/29Sp4otmwzISYcDYcH4Koy1weIzibKSzNA21a2c=
 github.com/gchalakovmmi/PulpuWEB/db v0.0.0-20250820233728-ad99ee5fdf6f h1:72LOlGwkBTmor/c9fJ9F5vHS73JGpr11h1gaJib26+Y=
 github.com/gchalakovmmi/PulpuWEB/db v0.0.0-20250820233728-ad99ee5fdf6f/go.mod h1:OkcKYeTILsKt/CedowhcJKI953Y7LT9A7nMrG5uoupM=
+github.com/gchalakovmmi/PulpuWEB/tts v0.0.0-20250824221555-91e1019e2634 h1:m0cLf71nNLRmaH5ZxNYbeR/ArjD5fsp6I2gDsbgvapk=
+github.com/gchalakovmmi/PulpuWEB/tts v0.0.0-20250824221555-91e1019e2634/go.mod h1:1DgRB+vVYd6CJEnp75f7nQXMaXTCjLEnRu+gGnwx5hk=
 github.com/gchalakovmmi/PulpuWEB/whisper v0.0.0-20250824203631-c55f158eb25a h1:NOPtWZSXYupLmBGhsMRUkWlBNGNmPv1rQcnbC49ejIM=
 github.com/gchalakovmmi/PulpuWEB/whisper v0.0.0-20250824203631-c55f158eb25a/go.mod h1:dfc5lUXlKkDoiymLbspIPr0VQABcnxIc7NAd2O9dEyo=
 github.com/go-chi/chi/v5 v5.2.2 h1:CMwsvRVTbXVytCk1Wd72Zy1LAsAh9GxMmSNWLHCG618=
