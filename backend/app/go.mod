@@ -8,6 +8,7 @@ require (
 	github.com/a-h/templ v0.3.943
 	github.com/gchalakovmmi/PulpuWEB/auth v0.0.0-20250824203631-c55f158eb25a
 	github.com/gchalakovmmi/PulpuWEB/db v0.0.0-20250820233728-ad99ee5fdf6f
+	github.com/gchalakovmmi/PulpuWEB/tts v0.0.0-20250824221555-91e1019e2634
 	github.com/gchalakovmmi/PulpuWEB/whisper v0.0.0-20250824203631-c55f158eb25a
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/markbates/goth v1.82.0
@@ -22,7 +23,6 @@ require (
 	github.com/cli/browser v1.3.0 // indirect
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
-	github.com/gchalakovmmi/PulpuWEB/tts v0.0.0-20250824221555-91e1019e2634 // indirect
 	github.com/go-chi/chi/v5 v5.2.2 // indirect
 	github.com/gorilla/context v1.1.1 // indirect
 	github.com/gorilla/mux v1.6.2 // indirect
