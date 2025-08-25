@@ -6,10 +6,7 @@ tool github.com/a-h/templ/cmd/templ
 
 require (
 	github.com/a-h/templ v0.3.943
-	github.com/gchalakovmmi/PulpuWEB/auth v0.0.0-20250824203631-c55f158eb25a
-	github.com/gchalakovmmi/PulpuWEB/db v0.0.0-20250820233728-ad99ee5fdf6f
-	github.com/gchalakovmmi/PulpuWEB/tts v0.0.0-20250824221555-91e1019e2634
-	github.com/gchalakovmmi/PulpuWEB/whisper v0.0.0-20250824203631-c55f158eb25a
+	github.com/gchalakovmmi/PulpuWEB v1.1.1
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/markbates/goth v1.82.0
 	github.com/openai/openai-go/v2 v2.1.1

@@ -10,7 +10,6 @@ import (
     "regexp"
     "strings"
     "sync"
-    "fmt"
     "github.com/gchalakovmmi/PulpuWEB/whisper"
     "github.com/gchalakovmmi/PulpuWEB/tts"
     "github.com/openai/openai-go/v2"
@@ -147,6 +146,7 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
             w.WriteHeader(status)
             json.NewEncoder(w).Encode(map[string]string{"error": message})
         }
+        
         // Get user ID and name from session
         authConfig, err := auth.GetGoogleAuthConfig()
         if err != nil {
@@ -161,6 +161,7 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
             sendJSONError("User not found", http.StatusNotFound)
             return
         }
+        
         // Get user name from database
         var userName string
         err = conn.QueryRow(context.Background(), "SELECT name FROM users WHERE id = $1", userID).Scan(&userName)
@@ -168,12 +169,14 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
             log.Printf("Error getting user name: %v", err)
             userName = "You" // Fallback
         }
+        
         // Parse the multipart form
         if err := r.ParseMultipartForm(10 << 20); err != nil { // 10 MB
             log.Printf("Error parsing form: %v", err)
             sendJSONError("Unable to parse form", http.StatusBadRequest)
             return
         }
+        
         // Get the history from the form
         historyJSON := r.FormValue("history")
         var history []ConversationTurn
@@ -184,6 +187,7 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
                 return
             }
         }
+        
         // Add hello message as first turn if history is empty
         if len(history) == 0 {
             history = []ConversationTurn{
@@ -193,12 +197,14 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
                 },
             }
         }
+        
         audioData, fileName, err := whisper.ParseAudioFromRequest(r)
         if err != nil {
             log.Printf("Error parsing audio: %v", err)
             sendJSONError("Unable to process audio", http.StatusBadRequest)
             return
         }
+        
         whisperReq := &whisper.TranscribeRequest{
             AudioData:    audioData,
             FileName:     fileName,
@@ -207,13 +213,16 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
             OutputFormat: "json",
             ShouldEncode: true,
         }
+        
         result, err := ts.SendToWhisper(whisperReq)
         if err != nil {
             log.Printf("Transcription failed: %v", err)
             sendJSONError("Transcription failed", http.StatusInternalServerError)
             return
         }
+        
         log.Printf("Transcribed text: %s", result.Text)
+        
         // Initialize OpenAI clients for LLM
         llmClient := openai.NewClient(
             option.WithBaseURL(os.Getenv("OPENAI_BASE_URL")),
@@ -223,12 +232,14 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
             option.WithBaseURL(os.Getenv("OPENAI_BASE_URL")),
             option.WithAPIKey(os.Getenv("OPENAI_KEY")),
         )
+        
         // Run suggestion generation and assistant response generation in parallel
         var wg sync.WaitGroup
         var suggestion string
         var llmResponse string
         var suggestionErr error
         var responseErr error
+        
         wg.Add(1)
         go func() {
             defer wg.Done()
@@ -237,6 +248,7 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
                 log.Printf("Suggestion generation failed: %v", suggestionErr)
             }
         }()
+        
         wg.Add(1)
         go func() {
             defer wg.Done()
@@ -245,12 +257,15 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
                 log.Printf("LLM request failed: %v", responseErr)
             }
         }()
+        
         wg.Wait()
+        
         // Check for errors in assistant response generation
         if responseErr != nil {
             sendJSONError("LLM request failed", http.StatusInternalServerError)
             return
         }
+        
         // Initialize TTS service
         ttsService, err := tts.NewTTSService()
         if err != nil {
@@ -279,17 +294,11 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
             })
             return
         }
-        // Create TTS request using environment variables
-        ttsReq := tts.TTSRequest{
-            Text:           llmResponse,
-            Voice:          os.Getenv("TTS_VOICE"),
-            ResponseFormat: os.Getenv("TTS_RESPONSE_FORMAT"),
-            Model:          os.Getenv("TTS_MODEL"),
-        }
-        // Parse speed from environment variable
-        if speed := os.Getenv("TTS_SPEED"); speed != "" {
-            fmt.Sscanf(speed, "%f", &ttsReq.Speed)
-        }
+        
+        // Create TTS request using the service's default configuration
+        ttsReq := ttsService.NewTTSRequest()
+        ttsReq.Text = llmResponse
+        
         // Convert text to speech using TTS library
         ttsResp, err := ttsService.ConvertTextToSpeech(ttsReq)
         if err != nil {
@@ -318,6 +327,7 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
             })
             return
         }
+        
         if ttsResp.Error != "" {
             log.Printf("TTS error: %s", ttsResp.Error)
             // Handle TTS error but still return text response
@@ -344,9 +354,11 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
             })
             return
         }
+        
         // Use the audio data from TTS response
         audioBytes := ttsResp.AudioData
         audioBase64 := base64.StdEncoding.EncodeToString(audioBytes)
+        
         // Update history with new turns (using limited response)
         history = append(history, ConversationTurn{
             Role:       "user",
@@ -358,6 +370,7 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
             Role:    "assistant",
             Content: llmResponse,
         })
+        
         w.Header().Set("Content-Type", "application/json")
         json.NewEncoder(w).Encode(map[string]interface{}{
             "status":           "success",
@@ -371,7 +384,6 @@ func APIConversationHandler(ts *whisper.TranscribeService) func(http.ResponseWri
     }
 }
 
-// Add this function to handle the initial hello message
 func APIStartConversationHandler(w http.ResponseWriter, r *http.Request, conn *pgx.Conn) {
     // Get user ID and name from session
     authConfig, err := auth.GetGoogleAuthConfig()
