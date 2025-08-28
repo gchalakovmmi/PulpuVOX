@@ -1,0 +1,15 @@
+package conversation
+
+import (
+    "PulpuVOX/web/templates/base"
+    "PulpuVOX/web/templates/pages/conversation/components/conversationui"
+    "github.com/markbates/goth"
+)
+
+templ ConversationComponents() {
+    @conversationui.ConversationUI()
+}
+
+templ Conversation(user *goth.User) {
+    @base.Base("PulpuVOX - Conversation", ConversationComponents(), user)
+}

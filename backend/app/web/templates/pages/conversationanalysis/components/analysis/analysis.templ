@@ -1,0 +1,36 @@
+package analysis
+
+templ Analysis() {
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">Conversation Analysis</h4>
+                </div>
+                <div class="card-body">
+                    <!-- Feedback Section -->
+                    <div class="mb-4">
+                        <h5>Teacher's Feedback</h5>
+                        <div class="p-3 bg-light rounded">
+                            <div class="text-center text-muted py-3">
+                                <i class="fas fa-spinner fa-spin me-2"></i>
+                                <span>Generating feedback...</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Conversation History -->
+                    <div>
+                        <h5>Conversation History</h5>
+                        <div class="conversation-history p-3 bg-light rounded" style="max-height: 400px; overflow-y: auto;">
+                            <div class="text-center text-muted py-3">
+                                <i class="fas fa-history fa-2x mb-2"></i>
+                                <p>Your conversation history will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}

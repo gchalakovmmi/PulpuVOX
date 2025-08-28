@@ -1,0 +1,15 @@
+package conversationanalysis
+
+import (
+    "PulpuVOX/web/templates/base"
+    "PulpuVOX/web/templates/pages/conversationanalysis/components/analysis"
+    "github.com/markbates/goth"
+)
+
+templ ConversationAnalysisComponents() {
+    @analysis.Analysis()
+}
+
+templ ConversationAnalysis(user *goth.User) {
+    @base.Base("PulpuVOX - Analysis", ConversationAnalysisComponents(), user)
+}

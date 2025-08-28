@@ -1,0 +1,14 @@
+package landing
+
+import (
+    "PulpuVOX/web/templates/base"
+    "PulpuVOX/web/templates/pages/landing/components/hero"
+)
+
+templ LandingComponents() {
+    @hero.Hero()
+}
+
+templ Landing() {
+    @base.Base("PulpuVOX - Welcome", LandingComponents(), nil)
+}

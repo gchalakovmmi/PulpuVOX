@@ -3,7 +3,7 @@ services:
     image: pulpuvox-backend
     restart: unless-stopped
     env_file:
-      - ./vars.env
+      - ./env.vars
     networks:
       - pulpuvox_net
       - net
@@ -14,7 +14,7 @@ services:
     image: pulpuvox-postgres
     restart: unless-stopped
     env_file:
-      - ./vars.env
+      - ./env.vars
     networks:
       - pulpuvox_net
     ports:
@@ -27,7 +27,7 @@ services:
   #   image: ntg-objectstorage
   #   restart: unless-stopped
   #   env_file:
-  #     - ./vars.env
+  #     - ./env.vars
   #   networks:
   #     - pulpuvox_net
   #   ports:

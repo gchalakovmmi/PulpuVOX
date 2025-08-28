@@ -9,8 +9,10 @@ clear:
 
 backend:
 	@echo "=== Backend ==="
+	@echo "Generating templ files..."
+	@cd backend/app && make generate
 	@echo "Compiling source code..."
-	@cd backend/app && make compile
+	@cd backend/app && make build
 	@echo "Building image..."
 	@cd backend && docker buildx build -t $(NAME)-backend .
 	@echo "Recreating container..."

@@ -1,4 +1,4 @@
-vars.env
+env.vars
 backend/app/app
 *_templ.go
 cache.mem

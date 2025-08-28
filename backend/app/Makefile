@@ -1,17 +1,31 @@
-BINARY := app
-.PHONY: clear compile run
+# Binary name
+BINARY_NAME := app
+BINARY_PATH := bin/$(BINARY_NAME)
 
-clear:
-	@clear
+.PHONY: build run tidy clean generate
 
-compile:
-	@echo "Generating templ files ..."
-	go tool templ generate ./...
-	@echo "Building binary ..."
-	CGO_ENABLED=0 go build -o $(BINARY) .
-	@echo "Cleaning _templ.go files ..."
-	find pages/ -name "*_templ.go" -exec rm {} \;
+build: generate
+		@echo "Building binary..."
+		mkdir -p bin
+		CGO_ENABLED=0 go build -o $(BINARY_PATH) ./cmd/app
 
-run:
-	@echo "Runing $(BINARY)"
-	env $$(grep -v '^#' vars.env | xargs) POSTGRES_IP=$$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' pulpuvox-database-1) ./$(BINARY)
+run: generate
+		@echo "Starting server..."
+		env $$(grep -v '^#' env.vars | xargs) ./$(BINARY_PATH)
+
+tidy:
+		@echo "Organizing dependencies..."
+		go mod tidy
+
+clean:
+		@echo "Cleaning binaries and generated files..."
+		rm -rf bin
+		find . -name "*_templ.go" -delete
+
+generate:
+		@echo "Generating Templ files..."
+		templ generate
+
+install-tools:
+		@echo "Installing development tools..."
+		go install github.com/a-h/templ/cmd/templ@latest

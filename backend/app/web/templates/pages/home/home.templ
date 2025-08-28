@@ -1,0 +1,15 @@
+package home
+
+import (
+    "PulpuVOX/web/templates/base"
+    "PulpuVOX/web/templates/pages/home/components/dashboard"
+    "github.com/markbates/goth"
+)
+
+templ HomeComponents() {
+    @dashboard.Dashboard()
+}
+
+templ Home(user *goth.User) {
+    @base.Base("PulpuVOX - Home", HomeComponents(), user)
+}

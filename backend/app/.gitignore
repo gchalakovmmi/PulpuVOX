@@ -1,0 +1,8 @@
+# Binaries
+bin/app
+
+# Templ generated files
+**/*_templ.go
+
+# Environment files
+env.vars

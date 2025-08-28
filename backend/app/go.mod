@@ -2,14 +2,12 @@ module PulpuVOX
 
 go 1.24.4
 
-tool github.com/a-h/templ/cmd/templ
-
 require (
 	github.com/a-h/templ v0.3.943
-	github.com/gchalakovmmi/PulpuWEB v1.1.1
+	github.com/gchalakovmmi/PulpuWEB/auth v0.0.0-20250825010315-5d84e963313a
+	github.com/gchalakovmmi/PulpuWEB/db v0.0.0-20250825010315-5d84e963313a
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/markbates/goth v1.82.0
-	github.com/openai/openai-go/v2 v2.1.1
 )
 
 require (
@@ -30,10 +28,6 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/natefinch/atomic v1.0.1 // indirect
-	github.com/tidwall/gjson v1.14.4 // indirect
-	github.com/tidwall/match v1.1.1 // indirect
-	github.com/tidwall/pretty v1.2.1 // indirect
-	github.com/tidwall/sjson v1.2.5 // indirect
 	golang.org/x/crypto v0.40.0 // indirect
 	golang.org/x/mod v0.26.0 // indirect
 	golang.org/x/net v0.42.0 // indirect
@@ -43,3 +37,5 @@ require (
 	golang.org/x/text v0.27.0 // indirect
 	golang.org/x/tools v0.35.0 // indirect
 )
+
+tool github.com/a-h/templ/cmd/templ

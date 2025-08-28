@@ -1,0 +1,35 @@
+package navbar
+
+import (
+    "github.com/markbates/goth"
+)
+
+templ Navbar(user *goth.User) {
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-comments me-2"></i>PulpuVOX
+            </a>
+            <div class="navbar-nav ms-auto">
+                if user != nil {
+                    <div class="dropdown">
+                        <button class="btn btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <img src={ user.AvatarURL } class="rounded-circle me-2" width="30" height="30">
+                            { user.Name }
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="/home">Home</a></li>
+                            <li><a class="dropdown-item" href="/conversation">Conversation</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/logout/google">Logout</a></li>
+                        </ul>
+                    </div>
+                } else {
+                    <a class="nav-link" href="/auth/google">
+                        <i class="fab fa-google me-1"></i> Sign in with Google
+                    </a>
+                }
+            </div>
+        </div>
+    </nav>
+}
