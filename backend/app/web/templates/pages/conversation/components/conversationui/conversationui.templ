@@ -13,7 +13,6 @@ templ ConversationUI() {
                         <img src="/static/images/voxy-blinking.gif" alt="Voxy" class="img-fluid rounded-circle mb-3" style="max-height: 200px;">
                         <p class="text-muted">Voxy is ready to chat with you!</p>
                     </div>
-                    
                     <!-- Conversation history -->
                     <div id="conversation-history" class="conversation-history mb-4 p-3 bg-light rounded" style="min-height: 300px; max-height: 400px; overflow-y: auto;">
                         <div class="text-center text-muted py-5">
@@ -21,17 +20,15 @@ templ ConversationUI() {
                             <p>Your conversation will appear here</p>
                         </div>
                     </div>
-                    
                     <!-- Controls -->
                     <div class="d-grid gap-2">
-                        <button class="btn btn-primary btn-lg" id="startButton" onclick="startRecording()">
+                        <button class="btn btn-primary btn-lg" id="startButton">
                             <i class="fas fa-microphone me-2"></i>Start Conversation
                         </button>
-                        <button class="btn btn-outline-danger" id="endConversationButton" onclick="endConversation()" disabled>
+                        <button class="btn btn-outline-danger" id="endConversationButton" disabled>
                             <i class="fas fa-stop-circle me-2"></i>End Conversation
                         </button>
                     </div>
-                    
                     <!-- Status indicator -->
                     <div class="mt-3 text-center">
                         <small class="text-muted" id="statusIndicator">Ready to start</small>
@@ -40,15 +37,12 @@ templ ConversationUI() {
             </div>
         </div>
     </div>
-    
     <!-- Hidden form for conversation data -->
     <form id="conversation-form" class="d-none">
         <input type="hidden" id="conversation-history-data" name="history">
     </form>
-    
     <!-- Audio element for playback -->
     <audio id="audio-player" class="d-none"></audio>
-
-	 <!-- Include conversation JavaScript -->
+    <!-- Include conversation JavaScript -->
     <script src="/static/js/conversation.js"></script>
 }

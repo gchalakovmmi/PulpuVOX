@@ -84,9 +84,14 @@ func (s *Server) createHandler() http.Handler {
     mux.Handle("/conversation-analysis", s.withUserContext(s.googleAuth.WithGoogleAuth(conversationanalysis.Handler)))
     
     // API routes
-    mux.Handle("/api/conversation/turn", 
-        db.WithDB(s.dbConnectionDetails, 
-            conversation.APIConversationHandler(s.services.WhisperService, s.services.OpenAIClient, s.services.TTSService)))
+	mux.Handle("/api/conversation/turn",
+		 s.withUserContext(
+			  middleware.WithDBAndAuth(s.dbConnectionDetails, s.googleAuth, 
+					func(w http.ResponseWriter, r *http.Request, conn *pgx.Conn) {
+						 conversation.APIConversationHandler(s.services.WhisperService, s.services.OpenAIClient, s.services.TTSService)(w, r, conn)
+					}),
+		 ),
+	)
     
     // Add conversation end handler
 	 mux.Handle("/api/conversation/end", 
