@@ -8,6 +8,7 @@ import (
     "net/http"
     "os"
     "runtime"
+    "strconv"
 )
 
 // TTSProvider represents the available TTS providers
@@ -41,6 +42,14 @@ func NewTTSService() (*TTSService, error) {
     voice := os.Getenv("TTS_VOICE")
     responseFormat := os.Getenv("TTS_RESPONSE_FORMAT")
     
+    // Parse speed from environment
+    speed := 1.0
+    if speedStr := os.Getenv("TTS_SPEED"); speedStr != "" {
+        if parsedSpeed, err := strconv.ParseFloat(speedStr, 64); err == nil {
+            speed = parsedSpeed
+        }
+    }
+    
     // Determine provider from environment variable
     providerStr := os.Getenv("TTS_PROVIDER")
     var provider TTSProvider
@@ -59,13 +68,14 @@ func NewTTSService() (*TTSService, error) {
         Model:          model,
         Voice:          voice,
         ResponseFormat: responseFormat,
+        Speed:          speed,
         Provider:       provider,
     }, nil
 }
 
 // TTSRequest represents a TTS request
 type TTSRequest struct {
-    Text           string  `json:"text"`
+    Text           string  `json:"input"`
     Model          string  `json:"model,omitempty"`
     Voice          string  `json:"voice,omitempty"`
     ResponseFormat string  `json:"response_format,omitempty"`
@@ -115,8 +125,11 @@ func (ts *TTSService) convertWithKittenTTS(req *TTSRequest, callerInfo string) (
     if req.ResponseFormat == "" {
         req.ResponseFormat = ts.ResponseFormat
     }
+    if req.Speed == 0 {
+        req.Speed = ts.Speed
+    }
 
-    // Create TTS request
+    // Create TTS request - ensure this matches exactly what KittenTTS expects
     ttsRequest := map[string]interface{}{
         "model":           req.Model,
         "input":           req.Text,
@@ -136,6 +149,8 @@ func (ts *TTSService) convertWithKittenTTS(req *TTSRequest, callerInfo string) (
         return nil, fmt.Errorf("failed to create TTS request %s: %w", callerInfo, err)
     }
     httpReq.Header.Set("Content-Type", "application/json")
+    
+    // KittenTTS might not require authentication, but include it if provided
     if ts.APIKey != "" {
         httpReq.Header.Set("Authorization", "Bearer "+ts.APIKey)
     }
