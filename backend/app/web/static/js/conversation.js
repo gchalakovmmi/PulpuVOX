@@ -81,23 +81,17 @@ function updateMessageDisplay() {
         
         // Add suggestion if available
         if (turn.suggestion !== undefined && turn.suggestion !== '') {
-            // Normalize for comparison
-            const normalizedSuggestion = normalizeTextForComparison(turn.suggestion);
-            const normalizedContent = normalizeTextForComparison(turn.content);
-            
-            if (normalizedSuggestion === normalizedContent || normalizedSuggestion === '') {
-                // Show positive feedback for correct sentences
-                const positiveDiv = document.createElement('div');
-                positiveDiv.className = 'positive-feedback';
-                positiveDiv.innerHTML = '✓ Good job! Your sentence is correct.';
-                messageDiv.appendChild(positiveDiv);
-            } else {
-                // Show suggestion for incorrect sentences
-                const suggestionDiv = document.createElement('div');
-                suggestionDiv.className = 'suggestion';
-                suggestionDiv.innerHTML = '<strong>Suggestion:</strong> ' + turn.suggestion;
-                messageDiv.appendChild(suggestionDiv);
-            }
+            // Show suggestion for incorrect sentences
+            const suggestionDiv = document.createElement('div');
+            suggestionDiv.className = 'suggestion';
+            suggestionDiv.innerHTML = '<strong>Suggestion:</strong> ' + turn.suggestion;
+            messageDiv.appendChild(suggestionDiv);
+        } else if (turn.role === 'user' && turn.suggestion !== undefined) {
+            // Show positive feedback for correct sentences (empty suggestion means correct)
+            const positiveDiv = document.createElement('div');
+            positiveDiv.className = 'positive-feedback';
+            positiveDiv.innerHTML = '✓ Good job! Your sentence is correct.';
+            messageDiv.appendChild(positiveDiv);
         } else if (turn.role === 'user' && turn.isProcessing) {
             // Show processing indicator for user messages that are still being processed
             const processingDiv = document.createElement('div');
@@ -441,81 +435,6 @@ function sendToServer(mp3Blob) {
         statusIndicator.textContent = "Error: " + error.message;
         updateUIState('ready');
     });
-}
-
-// Function to expand common contractions
-function expandContractions(text) {
-    const contractions = {
-        "i'm": "i am",
-        "you're": "you are",
-        "he's": "he is",
-        "she's": "she is",
-        "it's": "it is",
-        "we're": "we are",
-        "they're": "they are",
-        "that's": "that is",
-        "who's": "who is",
-        "what's": "what is",
-        "where's": "where is",
-        "when's": "when is",
-        "why's": "why is",
-        "how's": "how is",
-        "isn't": "is not",
-        "aren't": "are not",
-        "wasn't": "was not",
-        "weren't": "were not",
-        "haven't": "have not",
-        "hasn't": "has not",
-        "hadn't": "had not",
-        "don't": "do not",
-        "doesn't": "does not",
-        "didn't": "did not",
-        "won't": "will not",
-        "wouldn't": "would not",
-        "can't": "cannot",
-        "couldn't": "could not",
-        "shouldn't": "should not",
-        "mightn't": "might not",
-        "mustn't": "must not",
-        "i'd": "i would",
-        "you'd": "you would",
-        "he'd": "he would",
-        "she'd": "she would",
-        "it'd": "it would",
-        "we'd": "we would",
-        "they'd": "they would",
-        "i'll": "i will",
-        "you'll": "you will",
-        "he'll": "he will",
-        "she'll": "she will",
-        "it'll": "it will",
-        "we'll": "we will",
-        "they'll": "they will",
-        "i've": "i have",
-        "you've": "you have",
-        "we've": "we have",
-        "they've": "they have"
-    };
-    
-    let expandedText = text.toLowerCase();
-    for (const [contraction, expansion] of Object.entries(contractions)) {
-        const regex = new RegExp('\\b' + contraction + '\\b', 'gi');
-        expandedText = expandedText.replace(regex, expansion);
-    }
-    return expandedText;
-}
-
-// Function to normalize semicolons to dots
-function normalizeSemicolons(text) {
-    return text.replace(/;/g, '.'); // Replace semicolons with dots
-}
-
-// Function to normalize text for comparison
-function normalizeTextForComparison(text) {
-    return normalizeSemicolons(expandContractions(text))
-        .replace(/[\u2018\u2019]/g, "'")
-        .replace(/[.,!?;]$/, '')
-        .trim();
 }
 
 // Initialize UI state
