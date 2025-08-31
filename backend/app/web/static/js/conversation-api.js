@@ -1,3 +1,8 @@
+import { ConversationState } from './conversation-state.js';
+import { ConversationUI } from './conversation-ui.js';
+import { ConversationRecording } from './conversation-recording.js';
+import { CONSTANTS } from './constants.js';
+
 // API communication for conversation
 const ConversationAPI = {
     // Function to send MP3 to server
@@ -12,15 +17,16 @@ const ConversationAPI = {
         const formData = new FormData();
         formData.append('audio', mp3Blob, 'recording.mp3');
         formData.append('history', JSON.stringify(ConversationState.getConversationHistory()));
-    
+        
         // Add a temporary user message with "Processing..." indicator
         ConversationState.addToConversationHistory({
             role: 'user',
             content: 'Processing...',
             isProcessing: true
         });
+        
         ConversationUI.updateMessageDisplay();
-    
+        
         fetch('/api/conversation/turn', {
             method: 'POST',
             body: formData,
@@ -63,39 +69,47 @@ const ConversationAPI = {
             // Check if we have audio
             if (data.audio_base64 && data.status !== "partial_success") {
                 const audio = new Audio("data:audio/mp3;base64," + data.audio_base64);
-                audio.onended = function() {
-                    ConversationUI.updateUIState('preparing');
+                
+                audio.onended = () => {
+                    ConversationUI.updateUIState(CONSTANTS.UI_STATES.PREPARING);
                     // Reset for next recording
                     ConversationState.resetAudioChunks();
+                    
                     // Automatically start the next recording after a short delay
                     setTimeout(() => {
                         ConversationRecording.startRecordingProcess();
                     }, 1000);
                 };
-                audio.onerror = function(e) {
+                
+                audio.onerror = (e) => {
                     console.error("Audio playback failed:", e);
-                    ConversationUI.updateUIState('preparing');
+                    ConversationUI.updateUIState(CONSTANTS.UI_STATES.PREPARING);
                     // Reset for next recording
                     ConversationState.resetAudioChunks();
+                    
                     setTimeout(() => {
                         ConversationRecording.startRecordingProcess();
                     }, 1000);
                 };
+                
                 audio.play().catch(e => {
                     console.error("Audio play error:", e);
-                    ConversationUI.updateUIState('preparing');
+                    ConversationUI.updateUIState(CONSTANTS.UI_STATES.PREPARING);
                     // Reset for next recording
                     ConversationState.resetAudioChunks();
+                    
                     setTimeout(() => {
                         ConversationRecording.startRecordingProcess();
                     }, 1000);
                 });
-                ConversationUI.updateUIState('playing');
+                
+                ConversationUI.updateUIState(CONSTANTS.UI_STATES.PLAYING);
             } else {
                 // No audio available, but we can still continue
-                ConversationUI.updateUIState('preparing');
+                ConversationUI.updateUIState(CONSTANTS.UI_STATES.PREPARING);
                 // Reset for next recording
                 ConversationState.resetAudioChunks();
+                
                 setTimeout(() => {
                     ConversationRecording.startRecordingProcess();
                 }, 1000);
@@ -107,10 +121,10 @@ const ConversationAPI = {
             ConversationState.removeLastFromConversationHistory();
             ConversationUI.updateMessageDisplay();
             ConversationUI.elements.statusIndicator.textContent = "Error: " + error.message;
-            ConversationUI.updateUIState('ready');
+            ConversationUI.updateUIState(CONSTANTS.UI_STATES.READY);
         });
     },
-    
+
     // Function to end conversation
     endConversation: function() {
         // If we're currently recording, stop the recording first
@@ -143,7 +157,10 @@ const ConversationAPI = {
         .catch(error => {
             console.error('Error ending conversation:', error);
             ConversationUI.elements.statusIndicator.textContent = "Error ending conversation: " + error.message;
-            ConversationUI.updateUIState('ready');
+            ConversationUI.updateUIState(CONSTANTS.UI_STATES.READY);
         });
     }
 };
+
+// Export the ConversationAPI object
+export { ConversationAPI };

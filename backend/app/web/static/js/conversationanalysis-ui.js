@@ -31,20 +31,24 @@ const ConversationAnalysisUI = {
         // Fallback: just wrap the entire text in paragraphs
         return `<p>${feedbackText.replace(/\n/g, '</p><p>')}</p>`;
     },
-    
+
     // Display feedback in the UI
     displayFeedback: function(feedback) {
         const feedbackContent = document.getElementById('feedback-content');
+        
         if (feedbackContent) {
             feedbackContent.innerHTML = this.formatFeedback(feedback);
         }
     },
-    
+
     // Show error message
     showError: function(message, elementId) {
         const element = document.getElementById(elementId);
+        
         if (element) {
             element.innerHTML = `<p>${message}</p>`;
         }
     }
 };
+
+export { ConversationAnalysisUI };

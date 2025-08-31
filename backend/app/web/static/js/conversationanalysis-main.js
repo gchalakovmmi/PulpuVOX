@@ -1,3 +1,7 @@
+import { ConversationUtils } from './shared-conversation-utils.js';
+import { ConversationAnalysisAPI } from './conversationanalysis-api.js';
+import { ConversationAnalysisUI } from './conversationanalysis-ui.js';
+
 // Main application logic for conversation analysis
 document.addEventListener('DOMContentLoaded', function() {
     // Try to get conversation from sessionStorage first

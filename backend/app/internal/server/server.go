@@ -66,7 +66,7 @@ func (s *Server) createHandler() http.Handler {
     mux := http.NewServeMux()
     
     // Serve static files
-    mux.Handle("/static/", http.StripPrefix("/static/", 
+    mux.Handle("/static/", http.StripPrefix("/static/",
         http.FileServer(http.Dir("./web/static"))))
     
     // Health check endpoint
@@ -74,7 +74,7 @@ func (s *Server) createHandler() http.Handler {
     
     // Authentication routes
     mux.HandleFunc("/auth/google", s.authHandler.BeginAuthHandler)
-    mux.HandleFunc("/auth/google/callback", 
+    mux.HandleFunc("/auth/google/callback",
         db.WithDB(s.dbConnectionDetails, s.authHandler.AuthCallbackHandlerWithDB))
     mux.HandleFunc("/logout/google", s.authHandler.LogoutHandler)
     
@@ -87,7 +87,7 @@ func (s *Server) createHandler() http.Handler {
     // API routes
     mux.Handle("/api/conversation/turn",
         s.withUserContext(
-            middleware.WithDBAndAuth(s.dbConnectionDetails, s.googleAuth, 
+            middleware.WithDBAndAuth(s.dbConnectionDetails, s.googleAuth,
                 func(w http.ResponseWriter, r *http.Request, conn *pgx.Conn) {
                     conversation.APIConversationHandler(s.services.WhisperService, s.services.OpenAIClient, s.services.TTSService)(w, r, conn)
                 }),
@@ -95,16 +95,16 @@ func (s *Server) createHandler() http.Handler {
     )
     
     // Add conversation end handler - only register this once
-    mux.Handle("/api/conversation/end", 
+    mux.Handle("/api/conversation/end",
         middleware.WithDBAndAuth(s.dbConnectionDetails, s.googleAuth, conversation.ConversationEndHandler))
     
     // Add conversation analysis API endpoint
-    mux.Handle("/api/conversation/latest", 
+    mux.Handle("/api/conversation/latest",
         middleware.WithDBAndAuth(s.dbConnectionDetails, s.googleAuth, conversationanalysis.GetLatestConversationHandler))
-
-	// Add feedback generation endpoint
-	mux.Handle("/api/feedback/generate", 
-		 middleware.WithDBAndAuth(s.dbConnectionDetails, s.googleAuth, feedback.GenerateFeedbackHandler))
+    
+    // Add feedback generation endpoint
+    mux.Handle("/api/feedback/generate",
+        middleware.WithDBAndAuth(s.dbConnectionDetails, s.googleAuth, feedback.GenerateFeedbackHandler))
     
     return mux
 }

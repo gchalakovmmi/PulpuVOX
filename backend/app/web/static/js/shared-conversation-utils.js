@@ -6,7 +6,6 @@ const ConversationUtils = {
         div.className = turn.role === 'user' ? 'user-message' : 'assistant-message';
         
         const roleSpan = document.createElement('strong');
-        
         if (turn.role === 'user') {
             roleSpan.textContent = (turn.user_name || userName) + ': ';
         } else if (turn.role === 'assistant') {
@@ -47,10 +46,11 @@ const ConversationUtils = {
         
         return div;
     },
-    
+
     // Display conversation history
     displayConversation: function(history, containerId, userName = "You") {
         const container = document.getElementById(containerId);
+        
         if (!container) {
             console.error(`Container with ID ${containerId} not found`);
             return;
@@ -71,7 +71,7 @@ const ConversationUtils = {
         // Scroll to bottom to show latest message
         container.scrollTop = container.scrollHeight;
     },
-    
+
     // Save conversation to sessionStorage
     saveConversationToStorage: function(conversationHistory) {
         try {
@@ -82,7 +82,7 @@ const ConversationUtils = {
             return false;
         }
     },
-    
+
     // Load conversation from sessionStorage
     loadConversationFromStorage: function() {
         try {
@@ -94,3 +94,5 @@ const ConversationUtils = {
         }
     }
 };
+
+export { ConversationUtils };

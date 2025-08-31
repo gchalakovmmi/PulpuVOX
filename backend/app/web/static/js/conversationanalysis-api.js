@@ -1,3 +1,5 @@
+import { ConversationUtils } from './shared-conversation-utils.js';
+
 // API functions for conversation analysis
 const ConversationAnalysisAPI = {
     // Function to fetch feedback from the server
@@ -21,7 +23,7 @@ const ConversationAnalysisAPI = {
             return response.json();
         });
     },
-    
+
     // Function to fetch the latest conversation
     fetchLatestConversation: function() {
         return fetch('/api/conversation/latest', {
@@ -35,3 +37,5 @@ const ConversationAnalysisAPI = {
         });
     }
 };
+
+export { ConversationAnalysisAPI };
