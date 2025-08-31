@@ -26,6 +26,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // Prevent any default behavior
         e.preventDefault();
         e.stopPropagation();
+        
+        // Update UI immediately to provide feedback
+        ConversationUI.elements.endConversationButton.disabled = true;
+        ConversationUI.elements.endConversationButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Ending...';
+        
         // Always allow ending the conversation, even during recording
         ConversationAPI.endConversation();
     });

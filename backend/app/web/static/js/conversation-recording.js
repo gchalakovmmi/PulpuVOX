@@ -4,8 +4,22 @@ import { ConversationAPI } from './conversation-api.js';
 import { CONSTANTS } from './constants.js';
 
 // Recording functionality for conversation
-const ConversationRecording = {
+export const ConversationRecording = {
     audioContext: null,
+    
+    // Function to stop recording and cleanup
+    stopRecordingAndCleanup: function() {
+        const mediaRecorder = ConversationState.getMediaRecorder();
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+        }
+        
+        // Clean up media resources immediately
+        this.cleanupMediaResources();
+        
+        ConversationState.setIsRecording(false);
+        ConversationState.clearRecordingTimeout();
+    },
     
     // Function to stop recording
     stopRecording: function() {
@@ -15,6 +29,25 @@ const ConversationRecording = {
             ConversationUI.updateUIState(CONSTANTS.UI_STATES.PROCESSING);
             ConversationState.clearRecordingTimeout();
         }
+    },
+    
+    // Clean up media resources
+    cleanupMediaResources: function() {
+        // Stop all media tracks
+        const stream = ConversationState.getStream();
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            ConversationState.setStream(null);
+        }
+        
+        // Close audio context if it exists
+        if (this.audioContext) {
+            this.audioContext.close();
+            this.audioContext = null;
+        }
+        
+        // Reset audio chunks
+        ConversationState.resetAudioChunks();
     },
 
     // Function to start recording process
@@ -26,7 +59,7 @@ const ConversationRecording = {
             ConversationUI.updateUIState(CONSTANTS.UI_STATES.RECORDING);
             
             // Stop any existing stream
-            ConversationState.setStream(null);
+            this.cleanupMediaResources();
             
             // Request access to the microphone
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -58,6 +91,13 @@ const ConversationRecording = {
             // Event handler for when recording stops
             mediaRecorder.onstop = () => {
                 ConversationUI.updateUIState(CONSTANTS.UI_STATES.PROCESSING);
+                
+                // Check if we should skip processing (for immediate end conversation)
+                if (ConversationState.getShouldSkipProcessing()) {
+                    ConversationState.setShouldSkipProcessing(false);
+                    this.cleanupMediaResources();
+                    return;
+                }
                 
                 // Create a blob from the audio chunks
                 const audioBlob = new Blob(ConversationState.getAudioChunks(), { type: 'audio/wav' });
@@ -94,7 +134,7 @@ const ConversationRecording = {
         // Check if we should skip processing (for immediate end conversation)
         if (ConversationState.getShouldSkipProcessing()) {
             ConversationState.setShouldSkipProcessing(false);
-            ConversationAPI.endConversation();
+            this.cleanupMediaResources();
             return;
         }
         
@@ -180,6 +220,3 @@ const ConversationRecording = {
         reader.readAsArrayBuffer(blob);
     }
 };
-
-// Export the ConversationRecording object
-export { ConversationRecording };

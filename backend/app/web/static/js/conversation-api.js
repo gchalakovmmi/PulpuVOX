@@ -4,14 +4,13 @@ import { ConversationRecording } from './conversation-recording.js';
 import { CONSTANTS } from './constants.js';
 
 // API communication for conversation
-const ConversationAPI = {
+export const ConversationAPI = {
     // Function to send MP3 to server
     sendToServer: function(mp3Blob) {
         // Check if we should skip processing (for immediate end conversation)
         if (ConversationState.getShouldSkipProcessing()) {
             ConversationState.setShouldSkipProcessing(false);
-            this.endConversation();
-            return;
+            return; // Don't process, just return
         }
         
         const formData = new FormData();
@@ -127,12 +126,26 @@ const ConversationAPI = {
 
     // Function to end conversation
     endConversation: function() {
-        // If we're currently recording, stop the recording first
+        // If we're currently recording, stop the recording and skip processing
         if (ConversationState.getIsRecording()) {
             ConversationState.setShouldSkipProcessing(true);
-            ConversationRecording.stopRecording();
+            ConversationRecording.stopRecordingAndCleanup();
+            
+            // Small delay to allow the recording to stop completely
+            setTimeout(() => {
+                this.sendEndRequest();
+            }, 100);
             return;
         }
+        
+        // If not recording, send the end request immediately
+        this.sendEndRequest();
+    },
+    
+    // Helper function to send the end conversation request
+    sendEndRequest: function() {
+        // Update UI state to show we're processing the end conversation request
+        ConversationUI.updateUIState(CONSTANTS.UI_STATES.PROCESSING);
         
         // Save conversation to sessionStorage for the analysis page
         sessionStorage.setItem('currentConversation', JSON.stringify(ConversationState.getConversationHistory()));
@@ -158,9 +171,8 @@ const ConversationAPI = {
             console.error('Error ending conversation:', error);
             ConversationUI.elements.statusIndicator.textContent = "Error ending conversation: " + error.message;
             ConversationUI.updateUIState(CONSTANTS.UI_STATES.READY);
+            ConversationUI.elements.endConversationButton.disabled = false;
+            ConversationUI.elements.endConversationButton.innerHTML = '<i class="fas fa-stop-circle me-2"></i>End Conversation';
         });
     }
 };
-
-// Export the ConversationAPI object
-export { ConversationAPI };
