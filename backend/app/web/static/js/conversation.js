@@ -7,6 +7,7 @@ let isFirstTurn = true;
 let isRecording = false;
 let userName = "You"; // Default value
 let recordingTimeout;
+let shouldEndAfterProcessing = false;
 
 // Get references to UI elements
 const startButton = document.getElementById('startButton');
@@ -24,7 +25,7 @@ function updateUIState(state) {
         case 'ready':
             startButton.disabled = false;
             startButton.textContent = 'Start Conversation';
-            startButton.classList.remove('btn-danger');
+            startButton.classList.remove('btn-danger', 'btn-success');
             startButton.classList.add('btn-primary');
             statusIndicator.textContent = 'Ready to start';
             endConversationButton.disabled = true;
@@ -33,7 +34,7 @@ function updateUIState(state) {
             startButton.disabled = false;
             startButton.textContent = 'End Turn';
             startButton.classList.remove('btn-primary');
-            startButton.classList.add('btn-danger');
+            startButton.classList.add('btn-primary'); // Blue for end turn
             statusIndicator.innerHTML = '<span class="indicator pulse"></span> Recording... Speak now';
             endConversationButton.disabled = false;
             break;
@@ -58,12 +59,14 @@ function updateUIState(state) {
 // Function to update the message display
 function updateMessageDisplay() {
     conversationHistoryDiv.innerHTML = '';
+    
     conversationHistory.forEach(turn => {
         const messageDiv = document.createElement('div');
         messageDiv.className = turn.role === 'user' ? 'message user-message' : 'message assistant-message';
         
         const roleSpan = document.createElement('span');
         roleSpan.className = 'message-role';
+        
         if (turn.role === 'user') {
             roleSpan.textContent = (turn.user_name || userName) + ': ';
         } else if (turn.role === 'assistant') {
@@ -160,6 +163,7 @@ async function startRecordingProcess() {
         
         // Event handler for when recording stops
         mediaRecorder.onstop = () => {
+            statusIndicator.innerHTML = '<span class="indicator"></span> Processing...';
             // Create a blob from the audio chunks
             const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
             // Convert to MP3
@@ -245,13 +249,20 @@ endConversationButton.addEventListener('click', function(e) {
     e.preventDefault();
     e.stopPropagation();
     
-    // Only handle if we're not currently recording
-    if (!isRecording) {
-        endConversation();
-    }
+    // Always allow ending the conversation, even during recording
+    endConversation();
 });
 
 function endConversation() {
+    // If we're currently recording, stop the recording first
+    if (isRecording) {
+        stopRecording();
+        
+        // Set a flag to indicate we want to end after processing
+        shouldEndAfterProcessing = true;
+        return;
+    }
+    
     // Save conversation to sessionStorage for the analysis page
     sessionStorage.setItem('currentConversation', JSON.stringify(conversationHistory));
     
@@ -290,16 +301,13 @@ function convertToMp3(blob) {
             // Get the PCM data from the buffer
             const pcmData = buffer.getChannelData(0);
             const sampleRate = buffer.sampleRate;
-            
             // Initialize the MP3 encoder
             const mp3Encoder = new lamejs.Mp3Encoder(1, sampleRate, 128);
-            
             // Convert float32 to int16
             const samples = new Int16Array(pcmData.length);
             for (let i = 0; i < pcmData.length; i++) {
                 samples[i] = pcmData[i] * 32767;
             }
-            
             // Encode the PCM data to MP3
             const mp3Data = [];
             const sampleBlockSize = 1152;
@@ -310,13 +318,11 @@ function convertToMp3(blob) {
                     mp3Data.push(mp3Buffer);
                 }
             }
-            
             // Finalize the encoding
             const finalBuffer = mp3Encoder.flush();
             if (finalBuffer.length > 0) {
                 mp3Data.push(finalBuffer);
             }
-            
             // Combine all MP3 data
             const combined = new Uint8Array(mp3Data.reduce((acc, val) => {
                 const newArray = new Uint8Array(acc.length + val.length);
@@ -324,10 +330,8 @@ function convertToMp3(blob) {
                 newArray.set(val, acc.length);
                 return newArray;
             }, new Uint8Array()));
-            
             // Create a blob from the MP3 data
             const mp3Blob = new Blob([combined], { type: 'audio/mp3' });
-            
             // Send to server for transcription and TTS
             sendToServer(mp3Blob);
         }, function(error) {
@@ -341,7 +345,6 @@ function convertToMp3(blob) {
         statusIndicator.textContent = "Error processing recording";
         updateUIState('ready');
     };
-    
     // Read the blob as array buffer
     reader.readAsArrayBuffer(blob);
 }
@@ -351,7 +354,7 @@ function sendToServer(mp3Blob) {
     const formData = new FormData();
     formData.append('audio', mp3Blob, 'recording.mp3');
     formData.append('history', JSON.stringify(conversationHistory));
-    
+
     // Add a temporary user message with "Processing..." indicator
     conversationHistory.push({
         role: 'user',
@@ -359,7 +362,7 @@ function sendToServer(mp3Blob) {
         isProcessing: true
     });
     updateMessageDisplay();
-    
+
     fetch('/api/conversation/turn', {
         method: 'POST',
         body: formData,
@@ -373,18 +376,31 @@ function sendToServer(mp3Blob) {
     })
     .then(data => {
         console.log('API response:', data);
+        
         // Remove the temporary processing message
         conversationHistory.pop();
+        
         // Update the conversation history with the real data
         conversationHistory = data.history;
+        
         // Update the user name if provided
         if (data.user_name) {
             userName = data.user_name;
         }
+        
         // Update the message display
         updateMessageDisplay();
+        
         // Save conversation to sessionStorage for the analysis page
         sessionStorage.setItem('currentConversation', JSON.stringify(conversationHistory));
+        
+        // Check if we need to end the conversation after processing
+        if (shouldEndAfterProcessing) {
+            shouldEndAfterProcessing = false;
+            // Call endConversation again to actually end it
+            endConversation();
+            return;
+        }
         
         // Check if we have audio
         if (data.audio_base64 && data.status !== "partial_success") {

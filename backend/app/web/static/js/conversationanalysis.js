@@ -1,0 +1,135 @@
+// Function to format feedback with proper HTML structure
+function formatFeedback(feedbackText) {
+    // Split the feedback into sections based on common patterns
+    const sections = feedbackText.split(/\d+\.\s+/).filter(section => section.trim().length > 0);
+    
+    if (sections.length > 0) {
+        let html = '';
+        
+        sections.forEach((section, index) => {
+            const titleMatch = section.match(/^([^:]+):/);
+            const title = titleMatch ? titleMatch[1] : `Area ${index + 1}`;
+            const content = titleMatch ? section.replace(titleMatch[0], '').trim() : section.trim();
+            
+            html += `
+                <div class="feedback-point">
+                    <h5>${title}</h5>
+                    <p>${content}</p>
+                </div>
+            `;
+        });
+        
+        return html;
+    }
+    
+    // Fallback: just wrap the entire text in paragraphs
+    return `<p>${feedbackText.replace(/\n/g, '</p><p>')}</p>`;
+}
+
+// Function to fetch and display feedback
+function fetchFeedback(conversationHistory) {
+    fetch('/api/feedback/generate', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ history: conversationHistory }),
+        credentials: 'include'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to generate feedback');
+        }
+        return response.json();
+    })
+    .then(data => {
+        const feedbackContent = document.getElementById('feedback-content');
+        feedbackContent.innerHTML = formatFeedback(data.feedback);
+    })
+    .catch(error => {
+        console.error('Error fetching feedback:', error);
+        document.getElementById('feedback-content').innerHTML = 
+            '<p>Unable to generate feedback at this time. Please try again later.</p>';
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Try to get conversation from sessionStorage first
+    const conversationHistory = JSON.parse(sessionStorage.getItem('currentConversation'));
+    
+    if (conversationHistory) {
+        displayConversation(conversationHistory);
+        fetchFeedback(conversationHistory);
+    } else {
+        // Fall back to API call if no conversation in sessionStorage
+        fetch('/api/conversation/latest', {
+            credentials: 'include'
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('No conversation found');
+                }
+                return response.json();
+            })
+            .then(history => {
+                displayConversation(history);
+                fetchFeedback(history);
+            })
+            .catch(error => {
+                console.error('Error fetching conversation:', error);
+                document.getElementById('conversation-history').textContent = 
+                    'No conversation history found.';
+                document.getElementById('feedback-content').innerHTML = 
+                    '<p>No conversation available for feedback.</p>';
+            });
+    }
+
+    function displayConversation(history) {
+        const container = document.getElementById('conversation-history');
+        container.innerHTML = ''; // Clear loading message
+        
+        history.forEach(turn => {
+            const div = document.createElement('div');
+            div.className = turn.role === 'user' ? 'user-message' : 'assistant-message';
+            
+            const roleSpan = document.createElement('strong');
+            
+            if (turn.role === 'user') {
+                roleSpan.textContent = (turn.user_name || 'You') + ': ';
+            } else if (turn.role === 'assistant') {
+                roleSpan.textContent = 'Voxy: ';
+            } else {
+                roleSpan.textContent = turn.role + ': ';
+            }
+            
+            const contentSpan = document.createElement('span');
+            contentSpan.textContent = turn.content;
+            
+            div.appendChild(roleSpan);
+            div.appendChild(contentSpan);
+            
+            // Add suggestion if available
+            if (turn.suggestion !== undefined) {
+                // Normalize for comparison
+                const normalizedSuggestion = normalizeTextForComparison(turn.suggestion);
+                const normalizedContent = normalizeTextForComparison(turn.content);
+                
+                if (normalizedSuggestion === normalizedContent || normalizedSuggestion === '') {
+                    // Show positive feedback for correct sentences
+                    const positiveDiv = document.createElement('div');
+                    positiveDiv.className = 'positive-feedback';
+                    positiveDiv.innerHTML = '✓ Good job! Your sentence is correct.';
+                    div.appendChild(positiveDiv);
+                } else {
+                    // Show suggestion for incorrect sentences
+                    const suggestionDiv = document.createElement('div');
+                    suggestionDiv.className = 'suggestion';
+                    suggestionDiv.innerHTML = '<strong>Suggestion:</strong> ' + turn.suggestion;
+                    div.appendChild(suggestionDiv);
+                }
+            }
+            
+            container.appendChild(div);
+        });
+    }
+});

@@ -11,10 +11,12 @@ templ Analysis() {
                     <!-- Feedback Section -->
                     <div class="mb-4">
                         <h5>Teacher's Feedback</h5>
-                        <div class="p-3 bg-light rounded">
-                            <div class="text-center text-muted py-3">
-                                <i class="fas fa-spinner fa-spin me-2"></i>
-                                <span>Generating feedback...</span>
+                        <div id="feedback-content" class="p-3 bg-light rounded">
+                            <div class="loading-feedback text-center text-muted py-3">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p>Generating feedback...</p>
                             </div>
                         </div>
                     </div>
@@ -22,7 +24,7 @@ templ Analysis() {
                     <!-- Conversation History -->
                     <div>
                         <h5>Conversation History</h5>
-                        <div class="conversation-history p-3 bg-light rounded" style="max-height: 400px; overflow-y: auto;">
+                        <div id="conversation-history" class="p-3 bg-light rounded" style="max-height: 400px; overflow-y: auto;">
                             <div class="text-center text-muted py-3">
                                 <i class="fas fa-history fa-2x mb-2"></i>
                                 <p>Your conversation history will appear here</p>

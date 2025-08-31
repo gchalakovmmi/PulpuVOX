@@ -3,23 +3,25 @@ package conversation
 import (
     "encoding/json"
     "net/http"
+    "log"
 
     "github.com/jackc/pgx/v5"
-    "github.com/markbates/goth"
+    "github.com/gchalakovmmi/PulpuWEB/auth"
 )
 
 func ConversationEndHandler(w http.ResponseWriter, r *http.Request, conn *pgx.Conn) {
-    // Get user from context
-    user, ok := r.Context().Value("user").(*goth.User)
-    if !ok || user == nil {
+    // Get user session from context (set by auth middleware)
+    session, ok := r.Context().Value("user_session").(*auth.Session)
+    if !ok || session == nil {
         http.Error(w, "User not authenticated", http.StatusUnauthorized)
         return
     }
+    user := session.User
 
     var request struct {
         History []ConversationTurn `json:"history"`
     }
-    
+
     if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
         http.Error(w, "Invalid request body", http.StatusBadRequest)
         return
@@ -31,6 +33,7 @@ func ConversationEndHandler(w http.ResponseWriter, r *http.Request, conn *pgx.Co
         "SELECT id FROM users WHERE provider = $1 AND id_by_provider = $2", 
         user.Provider, user.UserID).Scan(&userID)
     if err != nil {
+        log.Printf("Error getting user ID: %v", err)
         http.Error(w, "User not found", http.StatusNotFound)
         return
     }
@@ -47,6 +50,7 @@ func ConversationEndHandler(w http.ResponseWriter, r *http.Request, conn *pgx.Co
         userID, historyJSON,
     )
     if err != nil {
+        log.Printf("Failed to save conversation: %v", err)
         http.Error(w, "Failed to save conversation", http.StatusInternalServerError)
         return
     }
