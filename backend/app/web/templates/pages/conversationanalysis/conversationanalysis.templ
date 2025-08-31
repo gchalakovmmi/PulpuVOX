@@ -12,5 +12,8 @@ templ ConversationAnalysisComponents() {
 
 templ ConversationAnalysis(user *goth.User) {
     @base.Base("PulpuVOX - Analysis", ConversationAnalysisComponents(), user)
-    <script src="/static/js/conversationanalysis.js"></script>
+    <script src="/static/js/shared-conversation-utils.js"></script>
+    <script src="/static/js/conversationanalysis-api.js"></script>
+    <script src="/static/js/conversationanalysis-ui.js"></script>
+    <script src="/static/js/conversationanalysis-main.js"></script>
 }

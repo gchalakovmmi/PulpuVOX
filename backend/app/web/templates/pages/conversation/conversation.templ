@@ -12,4 +12,9 @@ templ ConversationComponents() {
 
 templ Conversation(user *goth.User) {
     @base.Base("PulpuVOX - Conversation", ConversationComponents(), user)
+    <script src="/static/js/conversation-state.js"></script>
+    <script src="/static/js/conversation-ui.js"></script>
+    <script src="/static/js/conversation-recording.js"></script>
+    <script src="/static/js/conversation-api.js"></script>
+    <script src="/static/js/conversation-main.js"></script>
 }
