@@ -51,29 +51,30 @@ func filterText(text string) string {
 		return filtered
 }
 
-func limitResponseLength(text string, maxSentences int, maxChars int) string {
-		// Split into sentences (simple approach)
-		sentences := strings.Split(text, ".")
-		
-		// Limit to max sentences
-		if len(sentences) > maxSentences {
-				text = strings.Join(sentences[:maxSentences], ".") + "."
-		}
-		
-		// Limit to max characters
-		if len(text) > maxChars {
-				text = text[:maxChars]
-				// Try to end at a sentence boundary
-				if lastDot := strings.LastIndex(text, "."); lastDot != -1 {
-						text = text[:lastDot+1]
-				} else if lastSpace := strings.LastIndex(text, " "); lastSpace != -1 {
-						text = text[:lastSpace] + "..."
-				} else {
-						text = text + "..."
-				}
-		}
-		
-		return text
+func limitResponseLength(text string, maxSentences int) string {
+    // Split into sentences using multiple sentence terminators
+    sentenceEnders := regexp.MustCompile(`([.!?]+\s*)`)
+    parts := sentenceEnders.Split(text, -1)
+    separators := sentenceEnders.FindAllString(text, -1)
+    
+    // Reconstruct sentences with their terminators
+    var sentences []string
+    for i, part := range parts {
+        if i < len(separators) {
+            part += separators[i]
+        }
+        part = strings.TrimSpace(part)
+        if part != "" {
+            sentences = append(sentences, part)
+        }
+    }
+    
+    // Limit to max sentences
+    if len(sentences) > maxSentences {
+        return strings.Join(sentences[:maxSentences], " ")
+    }
+    
+    return strings.Join(sentences, " ")
 }
 
 func generateSuggestion(ctx context.Context, llmClient *openai.Client, history []ConversationTurn, userText string) (string, error) {
@@ -157,8 +158,8 @@ func generateAssistantResponse(ctx context.Context, llmClient *openai.Client, hi
 		// Filter out emojis and markdown
 		filteredResponse := filterText(llmResponse)
 		
-		// Limit response length (max 2 sentences, 150 characters)
-		limitedResponse := limitResponseLength(filteredResponse, 2, 150)
+		// Limit response length (max 4 sentences)
+		limitedResponse := limitResponseLength(filteredResponse, 4)
 		log.Printf("Limited response: %s", limitedResponse)
 		
 		return limitedResponse, nil
